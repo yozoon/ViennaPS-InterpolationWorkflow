@@ -11,12 +11,12 @@ template <typename T> struct Parameters {
   // Geometry
   T trenchWidth = 4.;
   T trenchHeight = 8.;
-  T taperAngle = 0.;
+  T taperAngle = -1.;
 
   // Process
-  T processTime = 4.3;
+  T processTime = 4.5;
   T sourcePower = 1.;
-  T stickingProbability = 0.2;
+  T stickingProbability = 0.9;
 
   Parameters() {}
 
