@@ -19,8 +19,6 @@
 #include "Parameters.hpp"
 #include "TrenchDeposition.hpp"
 
-#define SPLINE 1
-
 namespace fs = std::filesystem;
 
 template <typename NumericType, int D>
@@ -130,7 +128,7 @@ int main(int argc, char *argv[]) {
 
     int stepSize = (numberOfSamples + 1);
 
-#if SPLINE
+#ifndef LINEAR
     std::vector<NumericType> timesteps;
     timesteps.reserve(numberOfTimesteps);
     std::copy_if(result.begin(), result.end(), std::back_inserter(timesteps),
@@ -208,7 +206,11 @@ int main(int argc, char *argv[]) {
         .apply();
 
     interpolatedGeometry->insertNextLevelSet(geometry);
-    interpolatedGeometry->printSurface("interpolated.vtp");
+#ifndef LINEAR
+    interpolatedGeometry->printSurface("interpolated_spline.vtp");
+#else
+    interpolatedGeometry->printSurface("interpolated_linear.vtp");
+#endif
   }
   auto stop = Clock::now();
   auto interpDuration = Duration(stop - start).count();
