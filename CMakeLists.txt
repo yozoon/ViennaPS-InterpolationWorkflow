@@ -9,10 +9,10 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(fmt REQUIRED) 
 
 if (MSVC)
-    # warning level 4 and all warnings as errors
-    add_compile_options(/W4 /WX)
+    # warning level 4
+    add_compile_options(/W4)
 else()
-    # lots of warnings and all warnings as errors
+    # lots of warnings
     add_compile_options(-Wall -Wextra -pedantic)
 endif()
 

@@ -101,6 +101,11 @@ int main(int argc, char *argv[]) {
     psCSVDataSource<NumericType, DataDim> dataSource;
     dataSource.setFilename(dataFile.string());
 
+    // Get a copy of the data from the data source
+    auto data = dataSource.get();
+
+    // Also read the data that was stored alongside the actual data describing
+    // where it was sampled from (at which relative height)
     auto sampleLocations = dataSource.getPositionalParameters();
 
     int numberOfNeighbors = 3;
@@ -111,9 +116,6 @@ int main(int argc, char *argv[]) {
         psMedianDistanceScaler<NumericType, InputDim>>
         estimator(numberOfNeighbors, distanceExponent);
 
-    // Copy the data from the data source
-    auto data = dataSource.get();
-
     estimator.setData(psSmartPointer<decltype(data)>::New(data));
 
     if (!estimator.initialize())
@@ -121,7 +123,11 @@ int main(int argc, char *argv[]) {
 
     std::array<NumericType, InputDim> x = {params.taperAngle,
                                            params.stickingProbability};
-    auto [result, distance] = estimator.estimate(x);
+    auto estimateOpt = estimator.estimate(x);
+    if (!estimateOpt.has_value())
+      return EXIT_FAILURE;
+
+    auto [result, distance] = estimateOpt.value();
 
     std::cout << std::setw(40) << "Distance to nearest data point: ";
     std::cout << distance << std::endl;

@@ -62,14 +62,16 @@ public:
 
 #pragma omp parallel for default(shared) reduction(+ : sum1)
     for (const auto &node : *secondPointCloud) {
-      sum1 += firstLocator->findNearest(node).second;
+      auto nearestOpt = firstLocator->findNearest(node);
+      sum1 += nearestOpt.has_value() ? nearestOpt.value().second : 0.;
     }
     sum1 /= secondPointCloud->size();
 
     NumericType sum2 = 0.;
 #pragma omp parallel for default(shared) reduction(+ : sum2)
     for (const auto &node : *firstPointCloud) {
-      sum2 += secondLocator->findNearest(node).second;
+      auto nearestOpt = secondLocator->findNearest(node);
+      sum2 += nearestOpt.has_value() ? nearestOpt.value().second : 0.;
     }
     sum2 /= firstPointCloud->size();
 
