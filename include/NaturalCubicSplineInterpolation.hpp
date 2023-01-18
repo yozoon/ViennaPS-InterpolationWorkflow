@@ -1,7 +1,15 @@
 #ifndef NATURAL_CUBIC_SPLINE_INTERPOLATION_HPP
 #define NATURAL_CUBIC_SPLINE_INTERPOLATION_HPP
 
-#include <Eigen/Sparse>
+#include <algorithm>
+#include <cassert>
+#include <exception>
+#include <iterator>
+#include <set>
+#include <vector>
+
+#include <Eigen/SparseCore>
+#include <Eigen/SparseLU>
 
 template <typename KnotContainerType, typename ValueContainerType>
 class NaturalCubicSplineInterpolation {
@@ -9,13 +17,48 @@ class NaturalCubicSplineInterpolation {
   using OutputType = typename ValueContainerType::value_type;
   using SizeType = size_t;
 
-  static constexpr size_t outputDimension = std::tuple_size_v<OutputType>;
+  static constexpr SizeType outputDimension = std::tuple_size_v<OutputType>;
   bool initialized = false;
 
 public:
   NaturalCubicSplineInterpolation(const KnotContainerType &passedX,
                                   const ValueContainerType &passedY)
-      : knots(passedX), f(passedY), N(knots.size()) {}
+      : N(passedX.size()) {
+
+    if (passedX.size() != passedY.size())
+      throw std::invalid_argument(
+          "NaturalCubicSplineInterpolation: The number of elements in the X "
+          "and Y vector do not match.");
+
+    // Make sure that the input values are sorted and not duplicate.
+    // This is achieved by creating a permutation index set, whose comparison
+    // function is based on the comparison of the passed X values. Thus, upon
+    // inserting incrementing keys, the key will be placed in the set at the
+    // position where the X value with that index would be located. If two or
+    // more of the provided X values are the same, only the first value will be
+    // inserted.
+    const auto comparator = [&passedX](SizeType i, SizeType j) {
+      return passedX[i] < passedX[j];
+    };
+    std::set<SizeType, decltype(comparator)> indices(comparator);
+    for (SizeType i = 0; i < N; ++i)
+      indices.insert(i);
+
+    if (indices.size() < 3)
+      throw std::invalid_argument(
+          "NaturalCubicSplineInterpolation: Not enough unique X "
+          "values were provided to apply cubic spline interpolation.");
+
+    knots.reserve(indices.size());
+    f.reserve(indices.size());
+
+    // Use the permutation index array to actually populate our local vectors
+    // holding knots and values.
+    for (auto index : indices) {
+      knots.push_back(passedX[index]);
+      f.push_back(passedY[index]);
+    }
+  }
 
   OutputType operator()(NumericType x) {
     if (!initialized)
@@ -122,9 +165,9 @@ private:
 
     initialized = true;
   }
-  const KnotContainerType knots;
-  const ValueContainerType f;
   const SizeType N;
+  KnotContainerType knots;
+  ValueContainerType f;
 
   Eigen::Matrix<NumericType, Eigen::Dynamic, Eigen::Dynamic> a;
   Eigen::Matrix<NumericType, Eigen::Dynamic, Eigen::Dynamic> b;
