@@ -59,26 +59,6 @@ int main(int argc, char *argv[]) {
   using Clock = std::chrono::high_resolution_clock;
   using Duration = std::chrono::duration<double>;
 
-  // Input dimensions: taperAngle, stickingProbability
-  int InputDim = 2;
-
-  // How long to run the process and at which intervals to do the extraction
-  NumericType processDuration = 5.0;
-  NumericType extractionInterval = 1.0;
-
-  // The number of heights at which we are going to measure the diameter of the
-  // trench
-  int numberOfSamples = 30;
-
-  // Total number of timesteps during the advection process at which the
-  // geometry parameters are extracted.
-  int numberOfTimesteps = processDuration / extractionInterval + 1;
-
-  // Target Dimensions: (time, depth, diameters) x numberOfTimesteps
-  int TargetDim = (numberOfSamples + 1) * numberOfTimesteps;
-
-  int DataDim = InputDim + TargetDim;
-
   fs::path dataFile = "./data.csv";
   if (argc > 1)
     dataFile = fs::path{argv[1]};
@@ -107,12 +87,46 @@ int main(int argc, char *argv[]) {
     // where it was sampled from (at which relative height)
     auto sampleLocations = dataSource.getPositionalParameters();
 
+    // The number of samples is the number of sample locations plus one, since
+    // we also have the total depth of the resulting trench in the dataset.
+    int numberOfSamples = sampleLocations.size() + 1;
+
+    // The input dimension is provided by the csv file named parameter
+    // 'InputDim' In our case it is 2 since we use taper angle and sticking
+    // probability as input parameters.
+    int InputDim;
+    auto namedParams = dataSource.getNamedParameters();
+    if (auto id = namedParams.find("InputDimension"); id != namedParams.end()) {
+      InputDim = std::round(id->second);
+    } else {
+      std::cout << "'InputDimension' not found in provided data CSV file.\n";
+      return EXIT_FAILURE;
+    }
+
+    // The dimension of the data that is to be interpolated. In our case this
+    // are the extracted dimensions at different timesteps (the timesteps are
+    // also included in the data itself)
+    int TargetDim = data->at(0).size() - InputDim;
+
+    // The number of timesteps at which the dimensions were extracted.
+    // Since the data is stored in the pattern (time+samples), we have to divide
+    // by number of samples plus one.
+    int numberOfTimesteps = TargetDim / (numberOfSamples + 1);
+
+    // ================ Step 1: input interpolation ================ //
+    // This is the point in the Input parameter space where we want to get an
+    // estimate of the geometric dimensions.
+    std::vector<NumericType> x = {params.taperAngle,
+                                  params.stickingProbability};
+
+    // Interpolate the samples based on the provided input. For this we use
+    // nearest neighbors interpolation.
     int numberOfNeighbors = 3;
     NumericType distanceExponent = 2.;
-
     psNearestNeighborsInterpolation<NumericType,
                                     psMedianDistanceScaler<NumericType>>
         estimator;
+
     estimator.setNumberOfNeighbors(numberOfNeighbors);
     estimator.setDistanceExponent(distanceExponent);
     estimator.setDataDimensions(InputDim, TargetDim);
@@ -121,31 +135,32 @@ int main(int argc, char *argv[]) {
     if (!estimator.initialize())
       return EXIT_FAILURE;
 
-    std::vector<NumericType> x = {params.taperAngle,
-                                  params.stickingProbability};
     auto estimateOpt = estimator.estimate(x);
-    if (!estimateOpt)
+    if (!estimateOpt) {
+      std::cout << "Error during estimation.\n";
       return EXIT_FAILURE;
+    }
 
     auto [result, distance] = estimateOpt.value();
 
     std::cout << std::setw(40) << "Distance to nearest data point: ";
     std::cout << distance << std::endl;
 
+    // ================ Step 2: Time interpolation ================ //
     int stepSize = (numberOfSamples + 1);
 
-#ifndef LINEAR
     std::vector<NumericType> timesteps;
     timesteps.reserve(numberOfTimesteps);
     std::copy_if(result.begin(), result.end(), std::back_inserter(timesteps),
                  [=, i = 0](auto) mutable { return (i++ % stepSize) == 0; });
 
+#ifndef LINEAR
     std::vector<std::vector<NumericType>> dimensionsOverTime;
     dimensionsOverTime.reserve(numberOfTimesteps);
 
-    for (unsigned i = 0; i < numberOfTimesteps; ++i) {
+    for (int i = 0; i < numberOfTimesteps; ++i) {
       std::vector<NumericType> vec(numberOfSamples);
-      for (unsigned j = 0; j < numberOfSamples; ++j)
+      for (int j = 0; j < numberOfSamples; ++j)
         vec[j] = result[i * stepSize + 1 + j];
 
       dimensionsOverTime.push_back(vec);
@@ -156,10 +171,14 @@ int main(int argc, char *argv[]) {
 
     auto interpolated = spline(params.processTime);
 
-    auto dimensions = psSmartPointer<std::vector<NumericType>>::New(
-        interpolated.begin(), interpolated.end());
+    std::vector<NumericType> dimensions(interpolated.begin(),
+                                        interpolated.end());
 
 #else
+    // Since we use regular intervals we can simply take the difference between
+    // the first two timesteps
+    int extractionInterval = timesteps.at(1) - timesteps.at(0);
+
     // Now determine which two timesteps we should consider for interpolating
     // along the time axis
     NumericType extractionStep = params.processTime / extractionInterval;
@@ -175,33 +194,32 @@ int main(int argc, char *argv[]) {
     NumericType distanceToUpper = 1.0 * extractionStep - upperIdx;
     NumericType totalDistance = distanceToUpper + distanceToLower;
 
-    auto dimensions = psSmartPointer<std::vector<NumericType>>::New();
+    std::vector<NumericType> dimensions;
 
     // Copy the data corresponding to the dimensions of the lower timestep
     auto lowerDimensions =
         psSmartPointer<std::vector<NumericType>>::New(numberOfSamples);
-    for (unsigned i = 0; i < numberOfSamples; ++i)
+    for (int i = 0; i < numberOfSamples; ++i)
       lowerDimensions->at(i) = result.at(lowerIdx + 1 + i);
 
     if (totalDistance > 0) {
       // Copy the data corresponding to the dimensions of the upper timestep
       auto upperDimensions =
           psSmartPointer<std::vector<NumericType>>::New(numberOfSamples);
-      for (unsigned i = 0; i < numberOfSamples; ++i)
+      for (int i = 0; i < numberOfSamples; ++i)
         upperDimensions->at(i) = result.at(upperIdx + 1 + i);
 
       // Now for each individual dimension do linear interpolation between upper
       // and lower value based on the relative distance
       for (unsigned i = 0; i < lowerDimensions->size(); ++i)
-        dimensions->emplace_back((distanceToUpper * lowerDimensions->at(i) +
-                                  distanceToLower * upperDimensions->at(i)) /
-                                 totalDistance);
+        dimensions.emplace_back((distanceToUpper * lowerDimensions->at(i) +
+                                 distanceToLower * upperDimensions->at(i)) /
+                                totalDistance);
     } else {
       std::copy(lowerDimensions->begin(), lowerDimensions->end(),
-                std::back_inserter(*dimensions));
+                std::back_inserter(dimensions));
     }
 #endif
-
     NumericType origin[D] = {0.};
     origin[D - 1] = params.processTime + params.trenchHeight;
 
@@ -210,7 +228,7 @@ int main(int argc, char *argv[]) {
     auto geometry = psSmartPointer<lsDomain<NumericType, D>>::New(substrate);
 
     GeometryReconstruction<NumericType, D>(geometry, origin, sampleLocations,
-                                           *dimensions)
+                                           dimensions)
         .apply();
 
     interpolatedGeometry->insertNextLevelSet(geometry);

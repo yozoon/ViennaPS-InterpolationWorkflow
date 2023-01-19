@@ -1,8 +1,8 @@
 #pragma once
 
-#include <psMakeTrench.hpp>
 #include <SimpleDeposition.hpp>
 #include <psCSVWriter.hpp>
+#include <psMakeTrench.hpp>
 #include <psProcess.hpp>
 #include <psToSurfaceMesh.hpp>
 #include <psUtils.hpp>
@@ -10,12 +10,11 @@
 #include "AdvectionCallback.hpp"
 #include "Parameters.hpp"
 
-template <typename NumericType, int D, int DataDimensions = 0>
-void executeProcess(
-    psSmartPointer<psDomain<NumericType, D>> geometry,
-    const Parameters<NumericType> &params,
-    psSmartPointer<AdvectionCallback<NumericType, D, DataDimensions>>
-        advectionCallback = nullptr) {
+template <typename NumericType, int D>
+void executeProcess(psSmartPointer<psDomain<NumericType, D>> geometry,
+                    const Parameters<NumericType> &params,
+                    psSmartPointer<AdvectionCallback<NumericType, D>>
+                        advectionCallback = nullptr) {
   // copy top layer to capture deposition
   auto depoLayer = psSmartPointer<lsDomain<NumericType, D>>::New(
       geometry->getLevelSets()->back());

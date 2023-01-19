@@ -9,7 +9,7 @@
 
 #include "DimensionExtraction.hpp"
 
-template <typename NumericType, int D, int DataDimension>
+template <typename NumericType, int D>
 class AdvectionCallback : public psAdvectionCalback<NumericType, D> {
 protected:
   using psAdvectionCalback<NumericType, D>::domain;
