@@ -39,8 +39,7 @@ int main() {
   auto sampleLocations = extractor->getSampleLocations();
 
   std::string filename = "data.csv";
-  auto writer =
-      psSmartPointer<psCSVWriter<NumericType, dataDimension>>::New(filename);
+  auto writer = psSmartPointer<psCSVWriter<NumericType>>::New(filename);
 
   // Creation of a descriptive/ detailed header
   std::string header = "taperAngle,stickingProbability,";

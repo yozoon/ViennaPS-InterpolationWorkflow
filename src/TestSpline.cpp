@@ -31,14 +31,17 @@ int main() {
       knots.begin(), knots.size(),
       [i = 0, n = knots.size()]() mutable { return PI * i++ / (n - 1); });
 
-  std::vector<std::array<NumericType, outputDimension>> f;
-  std::transform(knots.begin(), knots.end(), std::back_inserter(f), [](auto v) {
-    return std::array<NumericType, outputDimension>{std::sin(v), std::cos(v)};
-  });
+  std::vector<std::vector<NumericType>> f(
+      knots.size(), std::vector<NumericType>(outputDimension));
+  for (unsigned i = 0; i < knots.size(); ++i) {
+    f[i][0] = std::sin(knots.at(i));
+    f[i][1] = std::cos(knots.at(i));
+  }
 
   printCSV(knots, f, "points.csv");
 
-  std::vector<NumericType> x(50);
+  unsigned numberOfSamples = 50;
+  std::vector<NumericType> x(numberOfSamples);
   NumericType min = -PI / 4;
   NumericType max = 5. * PI / 4;
 
@@ -46,9 +49,9 @@ int main() {
     return min + (max - min) * i++ / (n - 1);
   });
 
-  NaturalCubicSplineInterpolation spline(knots, f);
+  NaturalCubicSplineInterpolation<NumericType> spline(knots, f);
 
-  std::vector<std::array<NumericType, outputDimension>> interpolated;
+  std::vector<std::vector<NumericType>> interpolated;
   interpolated.reserve(x.size());
   std::transform(x.begin(), x.end(), std::back_inserter(interpolated),
                  [&](auto x) { return spline(x); });

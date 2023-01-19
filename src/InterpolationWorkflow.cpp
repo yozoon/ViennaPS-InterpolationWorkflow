@@ -60,25 +60,24 @@ int main(int argc, char *argv[]) {
   using Duration = std::chrono::duration<double>;
 
   // Input dimensions: taperAngle, stickingProbability
-  static constexpr int InputDim = 2;
+  int InputDim = 2;
 
   // How long to run the process and at which intervals to do the extraction
-  static constexpr NumericType processDuration = 5.0;
-  static constexpr NumericType extractionInterval = 1.0;
+  NumericType processDuration = 5.0;
+  NumericType extractionInterval = 1.0;
 
   // The number of heights at which we are going to measure the diameter of the
   // trench
-  static constexpr int numberOfSamples = 30;
+  int numberOfSamples = 30;
 
   // Total number of timesteps during the advection process at which the
   // geometry parameters are extracted.
-  static constexpr int numberOfTimesteps =
-      processDuration / extractionInterval + 1;
+  int numberOfTimesteps = processDuration / extractionInterval + 1;
 
   // Target Dimensions: (time, depth, diameters) x numberOfTimesteps
-  static constexpr int TargetDim = (numberOfSamples + 1) * numberOfTimesteps;
+  int TargetDim = (numberOfSamples + 1) * numberOfTimesteps;
 
-  static constexpr int DataDim = InputDim + TargetDim;
+  int DataDim = InputDim + TargetDim;
 
   fs::path dataFile = "./data.csv";
   if (argc > 1)
@@ -98,7 +97,7 @@ int main(int argc, char *argv[]) {
   auto start = Clock::now();
   auto interpolatedGeometry = psSmartPointer<psDomain<NumericType, D>>::New();
   {
-    psCSVDataSource<NumericType, DataDim> dataSource;
+    psCSVDataSource<NumericType> dataSource;
     dataSource.setFilename(dataFile.string());
 
     // Get a copy of the data from the data source
@@ -111,20 +110,21 @@ int main(int argc, char *argv[]) {
     int numberOfNeighbors = 3;
     NumericType distanceExponent = 2.;
 
-    psNearestNeighborsInterpolation<
-        NumericType, InputDim, TargetDim,
-        psMedianDistanceScaler<NumericType, InputDim>>
-        estimator(numberOfNeighbors, distanceExponent);
-
-    estimator.setData(psSmartPointer<decltype(data)>::New(data));
+    psNearestNeighborsInterpolation<NumericType,
+                                    psMedianDistanceScaler<NumericType>>
+        estimator;
+    estimator.setNumberOfNeighbors(numberOfNeighbors);
+    estimator.setDistanceExponent(distanceExponent);
+    estimator.setDataDimensions(InputDim, TargetDim);
+    estimator.setData(data);
 
     if (!estimator.initialize())
       return EXIT_FAILURE;
 
-    std::array<NumericType, InputDim> x = {params.taperAngle,
-                                           params.stickingProbability};
+    std::vector<NumericType> x = {params.taperAngle,
+                                  params.stickingProbability};
     auto estimateOpt = estimator.estimate(x);
-    if (!estimateOpt.has_value())
+    if (!estimateOpt)
       return EXIT_FAILURE;
 
     auto [result, distance] = estimateOpt.value();
@@ -140,17 +140,19 @@ int main(int argc, char *argv[]) {
     std::copy_if(result.begin(), result.end(), std::back_inserter(timesteps),
                  [=, i = 0](auto) mutable { return (i++ % stepSize) == 0; });
 
-    std::vector<std::array<NumericType, numberOfSamples>> dimensionsOverTime;
+    std::vector<std::vector<NumericType>> dimensionsOverTime;
     dimensionsOverTime.reserve(numberOfTimesteps);
 
     for (unsigned i = 0; i < numberOfTimesteps; ++i) {
-      std::array<NumericType, numberOfSamples> arr;
-      std::copy(result.begin() + 1 + i * stepSize,
-                result.begin() + 1 + (i + 1) * stepSize, arr.begin());
-      dimensionsOverTime.push_back(arr);
+      std::vector<NumericType> vec(numberOfSamples);
+      for (unsigned j = 0; j < numberOfSamples; ++j)
+        vec[j] = result[i * stepSize + 1 + j];
+
+      dimensionsOverTime.push_back(vec);
     }
 
-    NaturalCubicSplineInterpolation spline(timesteps, dimensionsOverTime);
+    NaturalCubicSplineInterpolation<NumericType> spline(timesteps,
+                                                        dimensionsOverTime);
 
     auto interpolated = spline(params.processTime);
 
@@ -264,9 +266,7 @@ int main(int argc, char *argv[]) {
   auto nodes2 = mesh2->getNodes();
 
   auto chamferDistance =
-      ChamferDistanceScore<NumericType>(
-          psSmartPointer<decltype(nodes1)>::New(nodes1))
-          .calculate(psSmartPointer<decltype(nodes2)>::New(nodes2));
+      ChamferDistanceScore<NumericType>(nodes1, nodes2).calculate();
 
   std::cout << std::setw(40) << "Chamfer distance (0==perfect match): ";
   std::cout << std::fixed << chamferDistance << std::endl;

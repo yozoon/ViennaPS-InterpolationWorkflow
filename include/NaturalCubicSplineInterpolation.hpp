@@ -11,18 +11,16 @@
 #include <Eigen/SparseCore>
 #include <Eigen/SparseLU>
 
-template <typename KnotContainerType, typename ValueContainerType>
-class NaturalCubicSplineInterpolation {
-  using NumericType = typename KnotContainerType::value_type;
-  using OutputType = typename ValueContainerType::value_type;
+template <typename NumericType> class NaturalCubicSplineInterpolation {
   using SizeType = size_t;
 
-  static constexpr SizeType outputDimension = std::tuple_size_v<OutputType>;
+  SizeType outputDimension = 0;
   bool initialized = false;
 
 public:
-  NaturalCubicSplineInterpolation(const KnotContainerType &passedX,
-                                  const ValueContainerType &passedY)
+  NaturalCubicSplineInterpolation(
+      const std::vector<NumericType> &passedX,
+      const std::vector<std::vector<NumericType>> &passedY)
       : N(passedX.size()) {
 
     if (passedX.size() != passedY.size())
@@ -49,18 +47,21 @@ public:
           "NaturalCubicSplineInterpolation: Not enough unique X "
           "values were provided to apply cubic spline interpolation.");
 
+    // The first element determins the output dimension
+    outputDimension = passedY.at(0).size();
+
     knots.reserve(indices.size());
-    f.reserve(indices.size());
+    f.resize(indices.size(), std::vector<NumericType>(outputDimension));
 
     // Use the permutation index array to actually populate our local vectors
     // holding knots and values.
     for (auto index : indices) {
       knots.push_back(passedX[index]);
-      f.push_back(passedY[index]);
+      f[index] = passedY[index];
     }
   }
 
-  OutputType operator()(NumericType x) {
+  std::vector<NumericType> operator()(NumericType x) {
     if (!initialized)
       initialize();
 
@@ -72,7 +73,7 @@ public:
 
     NumericType t = (x - knots.at(i - 1)) / (knots.at(i) - knots.at(i - 1));
 
-    OutputType result;
+    std::vector<NumericType> result(outputDimension, 0.);
     for (SizeType j = 0; j < outputDimension; ++j) {
       result[j] = (1. - t) * f.at(i - 1).at(j) + t * f.at(i).at(j) +
                   t * (1. - t) * ((1. - t) * a(i, j) + t * b(i, j));
@@ -166,8 +167,8 @@ private:
     initialized = true;
   }
   const SizeType N;
-  KnotContainerType knots;
-  ValueContainerType f;
+  std::vector<NumericType> knots;
+  std::vector<std::vector<NumericType>> f;
 
   Eigen::Matrix<NumericType, Eigen::Dynamic, Eigen::Dynamic> a;
   Eigen::Matrix<NumericType, Eigen::Dynamic, Eigen::Dynamic> b;

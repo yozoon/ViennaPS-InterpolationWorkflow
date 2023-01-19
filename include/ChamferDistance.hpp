@@ -13,67 +13,67 @@
  * (https://arxiv.org/pdf/1612.00603.pdf)
  */
 template <typename NumericType, class VectorType = std::array<NumericType, 3>,
-          class LocatorType =
-              psKDTree<NumericType, std::tuple_size_v<VectorType>>>
+          class LocatorType = psKDTree<NumericType>>
 class ChamferDistanceScore {
+  using PCType = std::vector<VectorType>;
+  using PCVec = std::vector<std::vector<NumericType>>;
+
   static_assert(
-      std::is_base_of_v<
-          psPointLocator<NumericType, std::tuple_size_v<VectorType>>,
-          LocatorType>,
+      std::is_base_of_v<psPointLocator<NumericType>, LocatorType>,
       "The passed point locator is not a subclass of psPointLocator.");
 
-  psSmartPointer<std::vector<VectorType>> firstPointCloud = nullptr;
-  psSmartPointer<LocatorType> firstLocator = nullptr;
-  bool buildLocator = true;
+  const PCType &firstPointCloud;
+  const PCType &secondPointCloud;
 
 public:
-  ChamferDistanceScore() {}
-  ChamferDistanceScore(
-      psSmartPointer<std::vector<VectorType>> passedFirstPointCloud)
-      : firstPointCloud(passedFirstPointCloud) {}
+  ChamferDistanceScore(const PCType &passedFirstPointCloud,
+                       const PCType &passedSecondPointCloud)
+      : firstPointCloud(passedFirstPointCloud),
+        secondPointCloud(passedSecondPointCloud) {}
 
-  void setFirstPointCloud(
-      psSmartPointer<std::vector<VectorType>> passedFirstPointCloud) {
-    firstPointCloud = passedFirstPointCloud;
-    buildLocator = true;
-  }
-
-  NumericType
-  calculate(psSmartPointer<std::vector<VectorType>> secondPointCloud) {
-    if (firstPointCloud == nullptr || secondPointCloud == nullptr) {
+  NumericType calculate() {
+    if (firstPointCloud.empty() || secondPointCloud.empty()) {
       lsMessage::getInstance()
           .addWarning("At least one of the meshes provided to "
-                      "cmChamferDistance is a nullptr.")
+                      "ChamferDistance is empty.")
           .print();
       return std::numeric_limits<NumericType>::infinity();
     }
 
-    // Only build the first locator if it hasn't been build yet
-    if (buildLocator) {
-      buildLocator = false;
-      firstLocator = psSmartPointer<LocatorType>::New(*firstPointCloud);
-      firstLocator->build();
-    }
+    PCVec firstPointVec;
+    firstPointVec.reserve(firstPointCloud.size());
+    for (const auto &pt : firstPointCloud)
+      firstPointVec.emplace_back(
+          std::vector<NumericType>(pt.begin(), pt.end()));
 
-    auto secondLocator = psSmartPointer<LocatorType>::New(*secondPointCloud);
-    secondLocator->build();
+    LocatorType firstLocator(firstPointVec);
+    firstLocator.build();
+
+    PCVec secondPointVec;
+    secondPointVec.reserve(secondPointCloud.size());
+    for (const auto &pt : secondPointCloud)
+      secondPointVec.emplace_back(
+          std::vector<NumericType>(pt.begin(), pt.end()));
+
+    LocatorType secondLocator(secondPointVec);
+    secondLocator.build();
 
     NumericType sum1 = 0.;
 
 #pragma omp parallel for default(shared) reduction(+ : sum1)
-    for (const auto &node : *secondPointCloud) {
-      auto nearestOpt = firstLocator->findNearest(node);
-      sum1 += nearestOpt.has_value() ? nearestOpt.value().second : 0.;
+    for (const auto &node : secondPointVec) {
+      auto nearestOpt = firstLocator.findNearest(node);
+      sum1 += nearestOpt ? nearestOpt.value().second : 0.;
     }
-    sum1 /= secondPointCloud->size();
+    sum1 /= secondPointVec.size();
 
     NumericType sum2 = 0.;
 #pragma omp parallel for default(shared) reduction(+ : sum2)
-    for (const auto &node : *firstPointCloud) {
-      auto nearestOpt = secondLocator->findNearest(node);
-      sum2 += nearestOpt.has_value() ? nearestOpt.value().second : 0.;
+    for (const auto &node : firstPointVec) {
+      auto nearestOpt = secondLocator.findNearest(node);
+      sum2 += nearestOpt ? nearestOpt.value().second : 0.;
     }
-    sum2 /= firstPointCloud->size();
+    sum2 /= firstPointVec.size();
 
     return sum1 + sum2;
   }

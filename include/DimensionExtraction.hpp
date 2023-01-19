@@ -60,13 +60,13 @@ public:
     dimensions->at(0) = depth;
 
     // Only use the vertical trench axis for the kDtree
-    std::vector<std::array<NumericType, 1>> ys;
+    std::vector<std::vector<NumericType>> ys;
     ys.reserve(nodes.size());
     std::transform(
         nodes.begin(), nodes.end(), std::back_inserter(ys),
-        [=](auto &node) { return std::array<NumericType, 1>{node[D - 1]}; });
+        [=](auto &node) { return std::vector<NumericType>{node[D - 1]}; });
 
-    psKDTree<NumericType, 1> tree;
+    psKDTree<NumericType> tree;
     tree.setPoints(ys);
     tree.build();
 
@@ -75,7 +75,7 @@ public:
     int i = 1;
     const NumericType gridDelta = domain->getGrid().getGridDelta();
     for (auto sl : verticalSampleLocations) {
-      std::array<NumericType, 1> loc{max - depth * sl};
+      std::vector<NumericType> loc = {max - depth * sl};
 
       auto neighbors = tree.findNearestWithinRadius(loc, gridDelta);
 
