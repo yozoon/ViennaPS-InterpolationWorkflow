@@ -7,6 +7,7 @@ set(VIENNAPS_VERBOSE OFF)
 find_package(ViennaPS REQUIRED)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(fmt REQUIRED) 
+find_package(LAPACK REQUIRED)
 
 if (MSVC)
     # warning level 4
@@ -18,18 +19,18 @@ endif()
 
 include_directories(include)
 
-list(APPEND VIENNAPS_LIBRARIES Eigen3::Eigen fmt::fmt)
+list(APPEND VIENNAPS_LIBRARIES Eigen3::Eigen fmt::fmt ${LAPACK_LIBRARIES})
 
 set(WORKFLOW InterpolationWorkflow)
 add_executable(${WORKFLOW} src/${WORKFLOW}.cpp)
 target_include_directories(${WORKFLOW} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
 target_link_libraries(${WORKFLOW} PRIVATE ${VIENNAPS_LIBRARIES})
 
-# set(WORKFLOW_LIN InterpolationWorkflowLinear)
-# add_executable(${WORKFLOW_LIN} src/${WORKFLOW}.cpp)
-# target_include_directories(${WORKFLOW_LIN} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
-# target_link_libraries(${WORKFLOW_LIN} PRIVATE ${VIENNAPS_LIBRARIES})
-# target_compile_definitions(${WORKFLOW_LIN} PUBLIC LINEAR)
+set(WORKFLOW_LIN InterpolationWorkflowLinear)
+add_executable(${WORKFLOW_LIN} src/${WORKFLOW}.cpp)
+target_include_directories(${WORKFLOW_LIN} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
+target_link_libraries(${WORKFLOW_LIN} PRIVATE ${VIENNAPS_LIBRARIES})
+target_compile_definitions(${WORKFLOW_LIN} PUBLIC LINEAR)
 
 set(CREATE_DATA CreateData)
 add_executable(${CREATE_DATA} src/${CREATE_DATA}.cpp)

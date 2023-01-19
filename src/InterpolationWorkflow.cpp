@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
     dataSource.setFilename(dataFile.string());
 
     // Get a copy of the data from the data source
-    auto data = dataSource.get();
+    auto data = dataSource.getData();
 
     // Also read the data that was stored alongside the actual data describing
     // where it was sampled from (at which relative height)

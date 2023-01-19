@@ -7,6 +7,7 @@
 #include <fmt/ranges.h>
 
 #include "NaturalCubicSplineInterpolation.hpp"
+#include "NaturalCubicSplineInterpolationEIGEN.hpp"
 
 template <typename KeyContainerType, typename ValueContainerType>
 void printCSV(const KeyContainerType &x, const ValueContainerType &y,
@@ -38,6 +39,7 @@ int main() {
     f[i][1] = std::cos(knots.at(i));
   }
 
+  fmt::print("Input:\n");
   printCSV(knots, f, "points.csv");
 
   unsigned numberOfSamples = 50;
@@ -49,12 +51,27 @@ int main() {
     return min + (max - min) * i++ / (n - 1);
   });
 
-  NaturalCubicSplineInterpolation<NumericType> spline(knots, f);
+  {
+    NaturalCubicSplineInterpolation<NumericType> spline(knots, f);
 
-  std::vector<std::vector<NumericType>> interpolated;
-  interpolated.reserve(x.size());
-  std::transform(x.begin(), x.end(), std::back_inserter(interpolated),
-                 [&](auto x) { return spline(x); });
+    std::vector<std::vector<NumericType>> interpolated;
+    interpolated.reserve(x.size());
+    std::transform(x.begin(), x.end(), std::back_inserter(interpolated),
+                   [&](auto x) { return spline(x); });
 
-  printCSV(x, interpolated, "spline.csv");
+    fmt::print("Output:\n");
+    printCSV(x, interpolated, "spline_lapack.csv");
+  }
+
+  {
+    NaturalCubicSplineInterpolationEIGEN<NumericType> spline(knots, f);
+
+    std::vector<std::vector<NumericType>> interpolated;
+    interpolated.reserve(x.size());
+    std::transform(x.begin(), x.end(), std::back_inserter(interpolated),
+                   [&](auto x) { return spline(x); });
+
+    fmt::print("Output:\n");
+    printCSV(x, interpolated, "spline_eigen.csv");
+  }
 }
