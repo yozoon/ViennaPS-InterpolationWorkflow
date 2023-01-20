@@ -1,7 +1,6 @@
 #ifndef NATURAL_CUBIC_SPLINE_INTERPOLATION_HPP
 #define NATURAL_CUBIC_SPLINE_INTERPOLATION_HPP
 
-
 #include <algorithm>
 #include <cassert>
 #include <exception>
@@ -9,8 +8,6 @@
 #include <memory>
 #include <set>
 #include <vector>
-
-#include <fmt/core.h>
 
 extern "C" {
 void dgtsv_(int *, int *, double *, double *, double *, double *, int *, int *);
@@ -57,13 +54,13 @@ public:
     outputDimension = passedY[0].size();
 
     knots.reserve(indices.size());
-    f.resize(indices.size(), std::vector<NumericType>(outputDimension));
+    y.resize(indices.size(), std::vector<NumericType>(outputDimension));
 
     // Use the permutation index array to actually populate our local vectors
     // holding knots and values.
     for (auto index : indices) {
       knots.push_back(passedX[index]);
-      f[index] = passedY[index];
+      y[index] = passedY[index];
     }
   }
 
@@ -81,7 +78,7 @@ public:
 
     std::vector<NumericType> result(outputDimension, 0.);
     for (int j = 0; j < outputDimension; ++j) {
-      result[j] = (1. - t) * f[i - 1][j] + t * f[i][j] +
+      result[j] = (1. - t) * y[i - 1][j] + t * y[i][j] +
                   t * (1. - t) *
                       ((1. - t) * a[i * outputDimension + j] +
                        t * b[i * outputDimension + j]);
@@ -111,22 +108,22 @@ private:
     for (int i = 1; i < N - 1; ++i)
       upperDiag[i] = 1.0 / (knots[i + 1] - knots[i]);
 
-    // RHS matrix
+    // RHS matrix (Column major layout!)
     auto B = std::make_unique<NumericType[]>(outputDimension * N);
 
     for (int j = 0; j < outputDimension; ++j) {
       // First row
-      B[j * N] = 3.0 * (f[1][j] - f[0][j]) / (knots[1] - knots[0]);
+      B[j * N] = 3.0 * (y[1][j] - y[0][j]) / (knots[1] - knots[0]);
       // Last row
       B[j * N + N - 1] =
-          3.0 * (f[N - 1][j] - f[N - 2][j]) / (knots[N - 1] - knots[N - 2]);
+          3.0 * (y[N - 1][j] - y[N - 2][j]) / (knots[N - 1] - knots[N - 2]);
     }
 
     for (int i = 1; i < N - 1; ++i) {
       for (int j = 0; j < outputDimension; ++j) {
         B[j * N + i] =
-            3.0 * ((f[i][j] - f[i - 1][j]) / (knots[i] - knots[i - 1]) +
-                   (f[i + 1][j] - f[i][j]) / (knots[i + 1] - knots[i]));
+            3.0 * ((y[i][j] - y[i - 1][j]) / (knots[i] - knots[i - 1]) +
+                   (y[i + 1][j] - y[i][j]) / (knots[i + 1] - knots[i]));
       }
     }
 
@@ -149,9 +146,9 @@ private:
       for (int j = 0; j < outputDimension; ++j) {
         a[i * outputDimension + j] =
             B[j * N + i - 1] * (knots[i] - knots[i - 1]) -
-            (f[i][j] - f[i - 1][j]);
+            (y[i][j] - y[i - 1][j]);
         b[i * outputDimension + j] =
-            -B[j * N + i] * (knots[i] - knots[i - 1]) + (f[i][j] - f[i - 1][j]);
+            -B[j * N + i] * (knots[i] - knots[i - 1]) + (y[i][j] - y[i - 1][j]);
       }
     }
 
@@ -163,7 +160,7 @@ private:
   bool initialized = false;
 
   std::vector<NumericType> knots;
-  std::vector<std::vector<NumericType>> f;
+  std::vector<std::vector<NumericType>> y;
 
   std::unique_ptr<NumericType[]> a = nullptr;
   std::unique_ptr<NumericType[]> b = nullptr;
