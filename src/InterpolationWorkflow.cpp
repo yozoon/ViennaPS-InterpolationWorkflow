@@ -19,6 +19,8 @@
 #include "Parameters.hpp"
 #include "TrenchDeposition.hpp"
 
+#include "SplineGridInterpolation.hpp"
+
 namespace fs = std::filesystem;
 
 template <typename NumericType, int D>
@@ -108,9 +110,15 @@ int main(int argc, char *argv[]) {
     // also included in the data itself)
     int TargetDim = data->at(0).size() - InputDim;
 
+    SplineGridInterpolation<NumericType> gridInterpolation;
+    gridInterpolation.setDataDimensions(InputDim, TargetDim);
+    gridInterpolation.setData(data);
+    gridInterpolation.initialize();
+    gridInterpolation.estimate(std::vector{0., 0.});
+
     // The number of timesteps at which the dimensions were extracted.
-    // Since the data is stored in the pattern (time+samples), we have to divide
-    // by number of samples plus one.
+    // Since the data is stored in the pattern (time+samples), we have to
+    // divide by number of samples plus one.
     int numberOfTimesteps = TargetDim / (numberOfSamples + 1);
 
     // ================ Step 1: input interpolation ================ //

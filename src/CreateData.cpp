@@ -1,3 +1,6 @@
+#include <fmt/color.h>
+#include <fmt/core.h>
+
 #include "DimensionExtraction.hpp"
 #include "Parameters.hpp"
 #include "TrenchDeposition.hpp"
@@ -12,7 +15,7 @@ int main() {
 
   // The parameters we are interested in
   std::vector<NumericType> stickingProbabilities = {1., 0.8, 0.3, 0.1};
-  std::vector<NumericType> taperAngles = {-2., 0., 2.};
+  std::vector<NumericType> taperAngles = {-15., -10, -5., 0., 5., 10., 15.};
 
   // The number of heights at which we are going to measure the diameter of the
   // trench
@@ -29,7 +32,7 @@ int main() {
   int InputDimension = 2;
   // int dataDimension =
   //     numberOfTimesteps * (numberOfSamples + 1) + InputDimension;
-  printf("Number of extraction timesteps: %d\n", numberOfTimesteps);
+  fmt::print("Number of extraction timesteps: {}\n", numberOfTimesteps);
 
   // Instantiate the extractor
   auto extractor = psSmartPointer<DimensionExtraction<NumericType, D>>::New();
@@ -61,14 +64,32 @@ int main() {
   writer->setHeader(header);
   writer->initialize();
 
-  Parameters<NumericType> params;
-
   for (auto taperAngle : taperAngles) {
+    Parameters<NumericType> params;
     params.taperAngle = taperAngle;
+    const NumericType offset =
+        std::tan(params.taperAngle * rayInternal::PI / 180.) *
+        params.trenchHeight;
+
+    if (params.trenchWidth / 2. + offset <= params.gridDelta) {
+      fmt::print(
+          fmt::fg(fmt::color::yellow),
+          "Warning: a trench with the provided height {:.3f} and taper angle "
+          "{:+.3f} would have an initial opening size of less than one grid "
+          "delta! Skipping.\n",
+          params.trenchHeight, params.taperAngle);
+      continue;
+    }
+
+    params.xExtent =
+        2. * std::max(params.trenchWidth / 2 - offset + params.gridDelta,
+                      params.xExtent / 2);
+
     for (auto stickingProbability : stickingProbabilities) {
       params.stickingProbability = stickingProbability;
-      std::cout << "taperAngle=" << taperAngle
-                << ", sticking probability=" << stickingProbability << '\n';
+      fmt::print("AR={:.3f}, taperAngle={:+.3f}, sticking probability={:.3f}\n",
+                 params.trenchHeight / params.trenchWidth, params.taperAngle,
+                 params.stickingProbability);
 
       // Using the advection callback, we can run the extraction at
       // certain pre-defined advection tim esteps.
@@ -85,12 +106,9 @@ int main() {
       advectionCallback->setDataPtr(data);
 
       auto geometry = psSmartPointer<psDomain<NumericType, D>>::New();
-      psMakeTrench<NumericType, D>(geometry, params.gridDelta /* grid delta */,
-                                   params.xExtent /*x extent*/,
-                                   params.yExtent /*y extent*/,
-                                   params.trenchWidth /*trench width*/,
-                                   params.trenchHeight /*trench height*/,
-                                   params.taperAngle /* tapering angle */)
+      psMakeTrench<NumericType, D>(geometry, params.gridDelta, params.xExtent,
+                                   params.yExtent, params.trenchWidth,
+                                   params.trenchHeight, params.taperAngle)
           .apply();
 
       params.processTime = processDuration / params.stickingProbability;
