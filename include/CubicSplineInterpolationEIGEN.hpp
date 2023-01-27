@@ -1,5 +1,5 @@
-#ifndef NATURAL_CUBIC_SPLINE_INTERPOLATION_EIGEN_HPP
-#define NATURAL_CUBIC_SPLINE_INTERPOLATION_EIGEN_HPP
+#ifndef CUBIC_SPLINE_INTERPOLATION_EIGEN_HPP
+#define CUBIC_SPLINE_INTERPOLATION_EIGEN_HPP
 
 #include <algorithm>
 #include <cassert>
@@ -11,20 +11,20 @@
 #include <Eigen/SparseCore>
 #include <Eigen/SparseLU>
 
-template <typename NumericType> class NaturalCubicSplineInterpolationEIGEN {
+template <typename NumericType> class CubicSplineInterpolationEIGEN {
   using SizeType = size_t;
 
   SizeType outputDimension = 0;
   bool initialized = false;
 
 public:
-  NaturalCubicSplineInterpolationEIGEN(
+  CubicSplineInterpolationEIGEN(
       const std::vector<NumericType> &passedX,
       const std::vector<std::vector<NumericType>> &passedY)
       : N(passedX.size()) {
 
     if (passedX.size() != passedY.size())
-      throw std::invalid_argument("NaturalCubicSplineInterpolationEIGEN: The "
+      throw std::invalid_argument("CubicSplineInterpolationEIGEN: The "
                                   "number of elements in the X "
                                   "and Y vector do not match.");
 
@@ -44,7 +44,7 @@ public:
 
     if (indices.size() < 4)
       throw std::invalid_argument(
-          "NaturalCubicSplineInterpolationEIGEN: Not enough unique X "
+          "CubicSplineInterpolationEIGEN: Not enough unique X "
           "values were provided to apply cubic spline interpolation.Cubic "
           "spline interpolation requires at least four points.");
 

@@ -18,7 +18,7 @@ template <typename NumericType> class SplineGridInterpolation {
   using VectorPtr = psSmartPointer<std::vector<ItemType>>;
   using ConstPtr = psSmartPointer<const std::vector<ItemType>>;
 
-  SplineBoundaryConditionType bcType = SplineBoundaryConditionType::NOT_A_KNOT;
+  std::vector<SplineBoundaryConditionType> bcTypes;
 
   SizeType inputDim{0};
   SizeType outputDim{0};
@@ -93,16 +93,23 @@ template <typename NumericType> class SplineGridInterpolation {
 public:
   SplineGridInterpolation() {}
 
-  SplineGridInterpolation(SplineBoundaryConditionType passedBCType)
-      : bcType(passedBCType) {}
+  void
+  setBCTypes(const std::vector<SplineBoundaryConditionType> &passedBCTypes) {
+    assert(passedBCTypes.size() == inputDim &&
+           "Not enough boundary conditions passed.");
+    bcTypes = passedBCTypes;
+  }
 
   void setBCType(SplineBoundaryConditionType passedBCType) {
-    bcType = passedBCType;
+    bcTypes = std::vector<SplineBoundaryConditionType>(inputDim, passedBCType);
   }
 
   void setDataDimensions(SizeType passedInputDim, SizeType passedOutputDim) {
     inputDim = passedInputDim;
     outputDim = passedOutputDim;
+    if (bcTypes.empty()) {
+      bcTypes.resize(inputDim, SplineBoundaryConditionType::NOT_A_KNOT);
+    }
   }
 
   void setData(ConstPtr passedData) {
@@ -121,6 +128,13 @@ public:
       std::cout << "SplineGridInterpolation: the sum of the provided "
                    "InputDimension and OutputDimension does not match the "
                    "dimension of the provided data.\n";
+      return false;
+    }
+
+    if (bcTypes.size() != inputDim) {
+      std::cout
+          << "SplineGridInterpolation: the provided boundary condition vector "
+             "has a different size than the input dimensions require.\n";
       return false;
     }
 
@@ -199,7 +213,7 @@ public:
           y.push_back(tmpData.at(j * stride + k));
 
         // Instantiate the spline interpolation
-        CubicSplineInterpolation<NumericType> interpolation(x, y);
+        CubicSplineInterpolation<NumericType> interpolation(x, y, bcTypes[i]);
         // And evaluate the interpolation function at the location of the input.
         // The output overwrites part of the temporary data vector, so that we
         // can use it as input in the next interpolation iteration.

@@ -9,7 +9,7 @@
 #include <psSmartPointer.hpp>
 
 #include "CubicSplineInterpolation.hpp"
-#include "NaturalCubicSplineInterpolationEIGEN.hpp"
+#include "CubicSplineInterpolationEIGEN.hpp"
 
 #include "SplineGridInterpolation.hpp"
 
@@ -104,7 +104,7 @@ int main() {
   }
 
   {
-    NaturalCubicSplineInterpolationEIGEN<NumericType> spline(knots, f);
+    CubicSplineInterpolationEIGEN<NumericType> spline(knots, f);
 
     std::vector<std::vector<NumericType>> interpolated;
     interpolated.reserve(x.size());
@@ -124,7 +124,7 @@ int main() {
 
     auto out = fmt::output_file("points_nd.csv");
 
-    int nx = 4, ny = 4;
+    int nx = 4, ny = 6;
     std::vector<std::vector<NumericType>> data;
     for (int i = 0; i < nx; ++i) {
       NumericType x = PI * i / (nx - 1);
@@ -142,6 +142,7 @@ int main() {
 
     SplineGridInterpolation<NumericType> sgi;
     sgi.setDataDimensions(2, functions.size());
+    sgi.setBCType(SplineBoundaryConditionType::NOT_A_KNOT);
     sgi.setData(
         psSmartPointer<const std::vector<std::vector<NumericType>>>::New(data));
 

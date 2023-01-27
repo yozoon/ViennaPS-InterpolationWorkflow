@@ -1,5 +1,5 @@
-#ifndef NATURAL_CUBIC_SPLINE_INTERPOLATION_HPP
-#define NATURAL_CUBIC_SPLINE_INTERPOLATION_HPP
+#ifndef CUBIC_SPLINE_INTERPOLATION_HPP
+#define CUBIC_SPLINE_INTERPOLATION_HPP
 
 #include <algorithm>
 #include <cassert>
@@ -243,11 +243,19 @@ private:
             2.0 *
             (1.0 / (knots[i] - knots[i - 1]) + 1.0 / (knots[i + 1] - knots[i]));
 
-        // Lower diagonal
+        // Diagonal with offet -1 (lower diagonal)
         A[toBandedIndex(LDAB, N, i, i - 1)] = 1.0 / (knots[i] - knots[i - 1]);
 
-        // Upper diagonal
+        // Diagonal with offet -2
+        if (i > 1)
+          A[toBandedIndex(LDAB, N, i, i - 2)] = 0.;
+
+        // Diagonal with offet +1 (upper diagonal)
         A[toBandedIndex(LDAB, N, i, i + 1)] = 1.0 / (knots[i + 1] - knots[i]);
+
+        // Diagonal with offet +2
+        if (i < N - 2)
+          A[toBandedIndex(LDAB, N, i, i + 2)] = 0.;
       }
 
       NumericType dx1 = knots[1] - knots[0];
