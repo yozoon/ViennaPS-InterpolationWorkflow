@@ -5,7 +5,6 @@ project("InterpolationWorkflow")
 set(VIENNAPS_VERBOSE OFF)
 
 find_package(ViennaPS REQUIRED)
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(fmt REQUIRED) 
 find_package(LAPACK REQUIRED)
 
@@ -19,7 +18,7 @@ endif()
 
 include_directories(include)
 
-list(APPEND VIENNAPS_LIBRARIES Eigen3::Eigen fmt::fmt ${LAPACK_LIBRARIES})
+list(APPEND VIENNAPS_LIBRARIES fmt::fmt ${LAPACK_LIBRARIES})
 
 set(WORKFLOW InterpolationWorkflow)
 add_executable(${WORKFLOW} src/${WORKFLOW}.cpp)

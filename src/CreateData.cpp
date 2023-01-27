@@ -1,7 +1,7 @@
 #include <fmt/color.h>
 #include <fmt/core.h>
 
-#include "GeometryExtraction.hpp"
+#include "FeatureExtraction.hpp"
 #include "Parameters.hpp"
 #include "TrenchDeposition.hpp"
 
@@ -35,7 +35,7 @@ int main() {
   fmt::print("Number of extraction timesteps: {}\n", numberOfTimesteps);
 
   // Instantiate the extractor
-  auto extractor = psSmartPointer<GeometryExtraction<NumericType, D>>::New();
+  auto extractor = psSmartPointer<FeatureExtraction<NumericType, D>>::New();
   extractor->setNumberOfSamples(numberOfSamples);
 
   // The locations at which the diameters are extracted (normalized to the
@@ -99,10 +99,10 @@ int main() {
       data->push_back(params.taperAngle);
       data->push_back(params.stickingProbability);
 
-      auto advectionCallback =
-          psSmartPointer<AdvectionCallback<NumericType, D>>::New(deltaT);
+      auto advectionCallback = psSmartPointer<AdvectionCallback<
+          NumericType, D, FeatureExtraction<NumericType, D>>>::New(deltaT);
 
-      advectionCallback->setExtractor(extractor);
+      advectionCallback->setFeatureExtraction(extractor);
       advectionCallback->setDataPtr(data);
 
       auto geometry = psSmartPointer<psDomain<NumericType, D>>::New();

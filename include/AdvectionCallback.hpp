@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ADVECTION_CALLBACK_HPP
+#define ADVECTION_CALLBACK_HPP
 
 #include <iomanip>
 #include <iostream>
@@ -7,9 +8,7 @@
 #include <psCSVWriter.hpp>
 #include <psSmartPointer.hpp>
 
-#include "GeometryExtraction.hpp"
-
-template <typename NumericType, int D>
+template <typename NumericType, int D, typename FeatureExtractionType>
 class AdvectionCallback : public psAdvectionCalback<NumericType, D> {
 protected:
   using psAdvectionCalback<NumericType, D>::domain;
@@ -19,9 +18,9 @@ public:
 
   AdvectionCallback(NumericType passedDeltaT) : deltaT(passedDeltaT) {}
 
-  void setExtractor(
-      psSmartPointer<GeometryExtraction<NumericType, D>> passedExtractor) {
-    extractor = passedExtractor;
+  void setFeatureExtraction(
+      psSmartPointer<FeatureExtractionType> passedFeatureExtraction) {
+    featureExtraction = passedFeatureExtraction;
   }
 
   void setDataPtr(psSmartPointer<std::vector<NumericType>> passedDataPtr) {
@@ -29,17 +28,17 @@ public:
   }
 
   void apply() {
-    if (!extractor)
+    if (!featureExtraction)
       return;
 
     if (dataPtr) {
-      extractor->setDomain(domain);
-      extractor->apply();
+      featureExtraction->setDomain(domain);
+      featureExtraction->apply();
 
-      auto dimensions = extractor->getDimensions();
-      if (dimensions) {
+      auto features = featureExtraction->getFeatures();
+      if (features) {
         dataPtr->push_back(processTime / deltaT);
-        std::copy(dimensions->begin(), dimensions->end(),
+        std::copy(features->begin(), features->end(),
                   std::back_inserter(*dataPtr));
       }
     }
@@ -70,6 +69,7 @@ private:
   NumericType lastUpdateTime = 0.0;
   size_t counter = 0;
 
-  psSmartPointer<GeometryExtraction<NumericType, D>> extractor = nullptr;
+  psSmartPointer<FeatureExtractionType> featureExtraction = nullptr;
   psSmartPointer<std::vector<NumericType>> dataPtr = nullptr;
 };
+#endif

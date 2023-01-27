@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FEATURE_EXTRACTION_HPP
+#define FEATURE_EXTRACTION_HPP
 
 #include <algorithm>
 #include <vector>
@@ -8,13 +9,13 @@
 #include <psDomain.hpp>
 #include <psKDTree.hpp>
 
-template <typename NumericType, int D> class GeometryExtraction {
+template <typename NumericType, int D> class FeatureExtraction {
 public:
-  GeometryExtraction()
+  FeatureExtraction()
       : verticalSampleLocations(
             distributeSampleLocations(numberOfSamples, -edgeAffinity)) {}
 
-  GeometryExtraction(psSmartPointer<psDomain<NumericType, D>> passedDomain)
+  FeatureExtraction(psSmartPointer<psDomain<NumericType, D>> passedDomain)
       : domain(passedDomain), verticalSampleLocations(distributeSampleLocations(
                                   numberOfSamples, -edgeAffinity)) {}
 
@@ -33,7 +34,7 @@ public:
     edgeAffinity = passedEdgeAffinity;
   }
 
-  psSmartPointer<std::vector<NumericType>> getDimensions() {
+  psSmartPointer<std::vector<NumericType>> getFeatures() {
     return dimensions;
   }
 
@@ -173,3 +174,4 @@ private:
 
   std::vector<NumericType> verticalSampleLocations;
 };
+#endif

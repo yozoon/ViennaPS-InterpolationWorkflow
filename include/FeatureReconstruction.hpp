@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FEATURE_RECONSTRUCTION_HPP
+#define FEATURE_RECONSTRUCTION_HPP
 
 #include <lsBooleanOperation.hpp>
 #include <lsFromSurfaceMesh.hpp>
@@ -7,22 +8,22 @@
 #include <lsMesh.hpp>
 #include <lsVTKWriter.hpp>
 
-template <typename NumericType, int D> class GeometryReconstruction {
+template <typename NumericType, int D> class FeatureReconstruction {
 
   psSmartPointer<lsDomain<NumericType, D>> &levelset;
   const NumericType (&origin)[D];
   const std::vector<NumericType> &sampleLocations;
-  const std::vector<NumericType> &dimensions;
+  const std::vector<NumericType> &features;
   NumericType eps;
 
 public:
-  GeometryReconstruction(
+  FeatureReconstruction(
       psSmartPointer<lsDomain<NumericType, D>> &passedLevelset,
       const NumericType (&passedOrigin)[D],
       const std::vector<NumericType> &passedSampleLocations,
-      const std::vector<NumericType> &passedDimensions)
+      const std::vector<NumericType> &passedFeatures)
       : levelset(passedLevelset), origin(passedOrigin),
-        sampleLocations(passedSampleLocations), dimensions(passedDimensions),
+        sampleLocations(passedSampleLocations), features(passedFeatures),
         eps(1e-4) {}
 
   void apply() {
@@ -37,24 +38,24 @@ public:
     }
 
     // Now create a mesh that reconstructs the trench profile by using the
-    // extracted dimensions. Use this mesh to generate a new levelset, which
+    // extracted features. Use this mesh to generate a new levelset, which
     // will be subtracted from the plane.
     {
-      NumericType depth = dimensions.at(0);
+      NumericType depth = features.at(0);
 
-      // Manually create a surface mesh based on the extracted dimensions
+      // Manually create a surface mesh based on the extracted features
       auto mesh = psSmartPointer<lsMesh<>>::New();
 
       NumericType gridDelta = levelset->getGrid().getGridDelta();
 
-      for (unsigned i = 1; i < dimensions.size(); ++i) {
+      for (unsigned i = 1; i < features.size(); ++i) {
         std::array<NumericType, 3> point{0.};
         point[0] = origin[0];
         point[1] = origin[1];
         if constexpr (D == 3)
           point[2] = origin[2];
 
-        point[0] -= std::max(dimensions.at(i) / 2, eps);
+        point[0] -= std::max(features.at(i) / 2, eps);
         point[D - 1] -= depth * sampleLocations.at(i - 1);
 
         mesh->insertNextNode(point);
@@ -69,26 +70,26 @@ public:
         if constexpr (D == 3)
           point[2] = origin[2];
 
-        point[0] -= std::max(dimensions.back() / 2, eps);
+        point[0] -= std::max(features.back() / 2, eps);
         point[D - 1] += 2 * gridDelta;
 
         mesh->insertNextNode(point);
 
         // Now also do the same thing for the right side
         point[0] = origin[0];
-        point[0] += std::max(dimensions.back() / 2, eps);
+        point[0] += std::max(features.back() / 2, eps);
 
         mesh->insertNextNode(point);
       }
 
-      for (unsigned i = dimensions.size() - 1; i >= 1; --i) {
+      for (unsigned i = features.size() - 1; i >= 1; --i) {
         std::array<NumericType, 3> point{0.};
         point[0] = origin[0];
         point[1] = origin[1];
         if constexpr (D == 3)
           point[2] = origin[2];
 
-        point[0] += std::max(dimensions.at(i) / 2, eps);
+        point[0] += std::max(features.at(i) / 2, eps);
         point[D - 1] -= depth * sampleLocations.at(i - 1);
 
         mesh->insertNextNode(point);
@@ -115,3 +116,4 @@ public:
     }
   }
 };
+#endif

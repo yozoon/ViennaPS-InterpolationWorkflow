@@ -8,13 +8,13 @@
 #include <psUtils.hpp>
 
 #include "AdvectionCallback.hpp"
+#include "FeatureExtraction.hpp"
 #include "Parameters.hpp"
 
-template <typename NumericType, int D>
+template <typename NumericType, int D, typename AdvectionCallbackType>
 void executeProcess(psSmartPointer<psDomain<NumericType, D>> geometry,
                     const Parameters<NumericType> &params,
-                    psSmartPointer<AdvectionCallback<NumericType, D>>
-                        advectionCallback = nullptr) {
+                    psSmartPointer<AdvectionCallbackType> advectionCallback) {
   // copy top layer to capture deposition
   auto depoLayer = psSmartPointer<lsDomain<NumericType, D>>::New(
       geometry->getLevelSets()->back());
@@ -26,8 +26,30 @@ void executeProcess(psSmartPointer<psDomain<NumericType, D>> geometry,
           params.sourcePower /*particel source power*/)
           .getProcessModel();
 
-  if (advectionCallback)
-    processModel->setAdvectionCallback(advectionCallback);
+  processModel->setAdvectionCallback(advectionCallback);
+
+  psProcess<NumericType, D> process;
+  process.setDomain(geometry);
+  process.setProcessModel(processModel);
+  process.setNumberOfRaysPerPoint(2000);
+  process.setProcessDuration(params.processTime);
+
+  process.apply();
+}
+
+template <typename NumericType, int D>
+void executeProcess(psSmartPointer<psDomain<NumericType, D>> geometry,
+                    const Parameters<NumericType> &params) {
+  // copy top layer to capture deposition
+  auto depoLayer = psSmartPointer<lsDomain<NumericType, D>>::New(
+      geometry->getLevelSets()->back());
+  geometry->insertNextLevelSet(depoLayer);
+
+  auto processModel =
+      SimpleDeposition<NumericType, D>(
+          params.stickingProbability /*particle sticking probability*/,
+          params.sourcePower /*particel source power*/)
+          .getProcessModel();
 
   psProcess<NumericType, D> process;
   process.setDomain(geometry);

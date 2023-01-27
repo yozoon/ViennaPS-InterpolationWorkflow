@@ -9,7 +9,6 @@
 #include <psSmartPointer.hpp>
 
 #include "CubicSplineInterpolation.hpp"
-#include "CubicSplineInterpolationEIGEN.hpp"
 
 #include "SplineGridInterpolation.hpp"
 
@@ -101,17 +100,6 @@ int main() {
                    [&](auto x) { return spline(x); });
 
     printCSV(x, reference, interpolated, "spline_lapack.csv");
-  }
-
-  {
-    CubicSplineInterpolationEIGEN<NumericType> spline(knots, f);
-
-    std::vector<std::vector<NumericType>> interpolated;
-    interpolated.reserve(x.size());
-    std::transform(x.begin(), x.end(), std::back_inserter(interpolated),
-                   [&](auto x) { return spline(x); });
-
-    printCSV(x, reference, interpolated, "spline_eigen.csv");
   }
 
   {

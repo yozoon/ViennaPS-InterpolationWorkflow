@@ -3,8 +3,8 @@
 #include <psSmartPointer.hpp>
 
 #include "AdvectionCallback.hpp"
-#include "GeometryExtraction.hpp"
-#include "GeometryReconstruction.hpp"
+#include "FeatureExtraction.hpp"
+#include "FeatureReconstruction.hpp"
 #include "Parameters.hpp"
 #include "TrenchDeposition.hpp"
 
@@ -27,18 +27,18 @@ int main() {
   executeProcess<NumericType, D>(geometry, params);
   geometry->printSurface("simulation.vtp");
 
-  GeometryExtraction<NumericType, D> extractor;
-  extractor.setDomain(geometry);
-  extractor.setNumberOfSamples(numberOfSamples);
-  extractor.setEdgeAffinity(4.);
+  FeatureExtraction<NumericType, D> extraction;
+  extraction.setDomain(geometry);
+  extraction.setNumberOfSamples(numberOfSamples);
+  extraction.setEdgeAffinity(4.);
 
-  extractor.apply();
+  extraction.apply();
 
-  auto sampleLocations = extractor.getSampleLocations();
+  auto sampleLocations = extraction.getSampleLocations();
 
-  auto dimensions = extractor.getDimensions();
+  auto features = extraction.getFeatures();
 
-  assert(sampleLocations.size() == dimensions->size() - 1);
+  assert(sampleLocations.size() == features->size() - 1);
 
   /**
    * Now reconstruct the geometry based on the extracted diameters
@@ -49,8 +49,7 @@ int main() {
   auto ls = psSmartPointer<lsDomain<NumericType, D>>::New(
       geometry->getLevelSets()->back()->getGrid());
 
-  GeometryReconstruction<NumericType, D>(ls, origin, sampleLocations,
-                                         *dimensions)
+  FeatureReconstruction<NumericType, D>(ls, origin, sampleLocations, *features)
       .apply();
 
   auto reconstruction = psSmartPointer<psDomain<NumericType, D>>::New();

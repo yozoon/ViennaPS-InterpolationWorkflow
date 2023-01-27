@@ -15,7 +15,7 @@
 
 #include "ChamferDistance.hpp"
 #include "CubicSplineInterpolation.hpp"
-#include "GeometryReconstruction.hpp"
+#include "FeatureReconstruction.hpp"
 #include "Parameters.hpp"
 #include "TrenchDeposition.hpp"
 
@@ -235,8 +235,8 @@ int main(int argc, char *argv[]) {
     interpolatedGeometry->insertNextLevelSet(substrate);
     auto geometry = psSmartPointer<lsDomain<NumericType, D>>::New(substrate);
 
-    GeometryReconstruction<NumericType, D>(geometry, origin, sampleLocations,
-                                           dimensions)
+    FeatureReconstruction<NumericType, D>(geometry, origin, sampleLocations,
+                                          dimensions)
         .apply();
 
     interpolatedGeometry->insertNextLevelSet(geometry);
