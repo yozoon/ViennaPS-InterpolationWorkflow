@@ -42,10 +42,11 @@ public:
     for (SizeType i = 0; i < N; ++i)
       indices.insert(i);
 
-    if (indices.size() < 3)
+    if (indices.size() < 4)
       throw std::invalid_argument(
           "NaturalCubicSplineInterpolationEIGEN: Not enough unique X "
-          "values were provided to apply cubic spline interpolation.");
+          "values were provided to apply cubic spline interpolation.Cubic "
+          "spline interpolation requires at least four points.");
 
     // The first element determins the output dimension
     outputDimension = passedY[0].size();
@@ -133,10 +134,11 @@ private:
       }
 
     // Now also set the values required for the "natural spline" conditions
+    NumericType dx1 = knots[1] - knots[0];
+    NumericType dxn1 = knots[N - 1] - knots[N - 2];
     for (SizeType j = 0; j < outputDimension; ++j) {
-      rhs(0, j) = 3.0 * (f[1][j] - f[0][j]) / (knots[1] - knots[0]);
-      rhs(N - 1, j) =
-          3.0 * (f[N - 1][j] - f[N - 2][j]) / (knots[N - 1] - knots[N - 2]);
+      rhs(0, j) = 3.0 * (f[1][j] - f[0][j]) / (dx1 * dx1);
+      rhs(N - 1, j) = 3.0 * (f[N - 1][j] - f[N - 2][j]) / (dxn1 * dxn1);
     }
 
     // Solve the system using SparseLU method

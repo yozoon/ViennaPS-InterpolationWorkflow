@@ -14,8 +14,8 @@
 #include <psNearestNeighborsInterpolation.hpp>
 
 #include "ChamferDistance.hpp"
+#include "CubicSplineInterpolation.hpp"
 #include "GeometryReconstruction.hpp"
-#include "NaturalCubicSplineInterpolation.hpp"
 #include "Parameters.hpp"
 #include "TrenchDeposition.hpp"
 
@@ -174,8 +174,8 @@ int main(int argc, char *argv[]) {
       dimensionsOverTime.push_back(vec);
     }
 
-    NaturalCubicSplineInterpolation<NumericType> spline(timesteps,
-                                                        dimensionsOverTime);
+    CubicSplineInterpolation<NumericType> spline(
+        timesteps, dimensionsOverTime, SplineBoundaryConditionType::NOT_A_KNOT);
 
     auto interpolated = spline(params.processTime);
 

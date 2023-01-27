@@ -8,7 +8,7 @@
 #include <set>
 #include <vector>
 
-#include "NaturalCubicSplineInterpolation.hpp"
+#include "CubicSplineInterpolation.hpp"
 
 // Class providing cubic spline interpolation on rectilinear data grids
 template <typename NumericType> class SplineGridInterpolation {
@@ -17,6 +17,8 @@ template <typename NumericType> class SplineGridInterpolation {
   using VectorType = std::vector<ItemType>;
   using VectorPtr = psSmartPointer<std::vector<ItemType>>;
   using ConstPtr = psSmartPointer<const std::vector<ItemType>>;
+
+  SplineBoundaryConditionType bcType = SplineBoundaryConditionType::NOT_A_KNOT;
 
   SizeType inputDim{0};
   SizeType outputDim{0};
@@ -90,6 +92,13 @@ template <typename NumericType> class SplineGridInterpolation {
 
 public:
   SplineGridInterpolation() {}
+
+  SplineGridInterpolation(SplineBoundaryConditionType passedBCType)
+      : bcType(passedBCType) {}
+
+  void setBCType(SplineBoundaryConditionType passedBCType) {
+    bcType = passedBCType;
+  }
 
   void setDataDimensions(SizeType passedInputDim, SizeType passedOutputDim) {
     inputDim = passedInputDim;
@@ -190,7 +199,7 @@ public:
           y.push_back(tmpData.at(j * stride + k));
 
         // Instantiate the spline interpolation
-        NaturalCubicSplineInterpolation<NumericType> interpolation(x, y);
+        CubicSplineInterpolation<NumericType> interpolation(x, y);
         // And evaluate the interpolation function at the location of the input.
         // The output overwrites part of the temporary data vector, so that we
         // can use it as input in the next interpolation iteration.

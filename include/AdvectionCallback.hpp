@@ -7,7 +7,7 @@
 #include <psCSVWriter.hpp>
 #include <psSmartPointer.hpp>
 
-#include "DimensionExtraction.hpp"
+#include "GeometryExtraction.hpp"
 
 template <typename NumericType, int D>
 class AdvectionCallback : public psAdvectionCalback<NumericType, D> {
@@ -20,7 +20,7 @@ public:
   AdvectionCallback(NumericType passedDeltaT) : deltaT(passedDeltaT) {}
 
   void setExtractor(
-      psSmartPointer<DimensionExtraction<NumericType, D>> passedExtractor) {
+      psSmartPointer<GeometryExtraction<NumericType, D>> passedExtractor) {
     extractor = passedExtractor;
   }
 
@@ -70,6 +70,6 @@ private:
   NumericType lastUpdateTime = 0.0;
   size_t counter = 0;
 
-  psSmartPointer<DimensionExtraction<NumericType, D>> extractor = nullptr;
+  psSmartPointer<GeometryExtraction<NumericType, D>> extractor = nullptr;
   psSmartPointer<std::vector<NumericType>> dataPtr = nullptr;
 };

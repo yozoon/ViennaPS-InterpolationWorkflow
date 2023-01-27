@@ -3,7 +3,7 @@
 #include <psSmartPointer.hpp>
 
 #include "AdvectionCallback.hpp"
-#include "DimensionExtraction.hpp"
+#include "GeometryExtraction.hpp"
 #include "GeometryReconstruction.hpp"
 #include "Parameters.hpp"
 #include "TrenchDeposition.hpp"
@@ -12,7 +12,7 @@ int main() {
   using NumericType = double;
   static constexpr int D = 2;
 
-  static constexpr int numberOfSamples = 20;
+  static constexpr int numberOfSamples = 30;
 
   Parameters<NumericType> params;
 
@@ -27,7 +27,7 @@ int main() {
   executeProcess<NumericType, D>(geometry, params);
   geometry->printSurface("simulation.vtp");
 
-  DimensionExtraction<NumericType, D> extractor;
+  GeometryExtraction<NumericType, D> extractor;
   extractor.setDomain(geometry);
   extractor.setNumberOfSamples(numberOfSamples);
   extractor.setEdgeAffinity(4.);

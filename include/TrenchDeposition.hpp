@@ -32,7 +32,7 @@ void executeProcess(psSmartPointer<psDomain<NumericType, D>> geometry,
   psProcess<NumericType, D> process;
   process.setDomain(geometry);
   process.setProcessModel(processModel);
-  process.setNumberOfRaysPerPoint(1000);
+  process.setNumberOfRaysPerPoint(2000);
   process.setProcessDuration(params.processTime);
 
   process.apply();

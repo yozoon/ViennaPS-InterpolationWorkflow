@@ -45,6 +45,8 @@ public:
       // Manually create a surface mesh based on the extracted dimensions
       auto mesh = psSmartPointer<lsMesh<>>::New();
 
+      NumericType gridDelta = levelset->getGrid().getGridDelta();
+
       for (unsigned i = 1; i < dimensions.size(); ++i) {
         std::array<NumericType, 3> point{0.};
         point[0] = origin[0];
@@ -54,6 +56,27 @@ public:
 
         point[0] -= std::max(dimensions.at(i) / 2, eps);
         point[D - 1] -= depth * sampleLocations.at(i - 1);
+
+        mesh->insertNextNode(point);
+      }
+
+      {
+        // Add one point on top of the geometry, so that we avoid potential
+        // sharp corners
+        std::array<NumericType, 3> point{0.};
+        point[0] = origin[0];
+        point[1] = origin[1];
+        if constexpr (D == 3)
+          point[2] = origin[2];
+
+        point[0] -= std::max(dimensions.back() / 2, eps);
+        point[D - 1] += 2 * gridDelta;
+
+        mesh->insertNextNode(point);
+
+        // Now also do the same thing for the right side
+        point[0] = origin[0];
+        point[0] += std::max(dimensions.back() / 2, eps);
 
         mesh->insertNextNode(point);
       }

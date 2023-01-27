@@ -4,7 +4,6 @@
 #include <array>
 
 #include <psKDTree.hpp>
-#include <psPointLocator.hpp>
 #include <psSmartPointer.hpp>
 
 /**
@@ -17,10 +16,6 @@ template <typename NumericType, class VectorType = std::array<NumericType, 3>,
 class ChamferDistanceScore {
   using PCType = std::vector<VectorType>;
   using PCVec = std::vector<std::vector<NumericType>>;
-
-  static_assert(
-      std::is_base_of_v<psPointLocator<NumericType>, LocatorType>,
-      "The passed point locator is not a subclass of psPointLocator.");
 
   const PCType &firstPointCloud;
   const PCType &secondPointCloud;

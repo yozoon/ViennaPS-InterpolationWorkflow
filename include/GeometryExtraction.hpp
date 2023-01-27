@@ -8,13 +8,13 @@
 #include <psDomain.hpp>
 #include <psKDTree.hpp>
 
-template <typename NumericType, int D> class DimensionExtraction {
+template <typename NumericType, int D> class GeometryExtraction {
 public:
-  DimensionExtraction()
+  GeometryExtraction()
       : verticalSampleLocations(
             distributeSampleLocations(numberOfSamples, -edgeAffinity)) {}
 
-  DimensionExtraction(psSmartPointer<psDomain<NumericType, D>> passedDomain)
+  GeometryExtraction(psSmartPointer<psDomain<NumericType, D>> passedDomain)
       : domain(passedDomain), verticalSampleLocations(distributeSampleLocations(
                                   numberOfSamples, -edgeAffinity)) {}
 
@@ -77,10 +77,29 @@ public:
     for (auto sl : verticalSampleLocations) {
       std::vector<NumericType> loc = {max - depth * sl};
 
-      auto neighbors = tree.findNearestWithinRadius(loc, gridDelta);
+      auto neighbors = tree.findNearestWithinRadius(loc, gridDelta / 2);
+      if (!neighbors) {
+        ++i;
+        continue;
+      }
+
+      // auto [minIt, maxIt] =
+      //     std::minmax_element(neighbors->begin(), neighbors->end(),
+      //                         [&](const auto &a, const auto &b) {
+      //                           return nodes[a.first][0] < nodes[b.first][0];
+      //                         });
+      // if (minIt == neighbors->end() || maxIt == neighbors->end()) {
+      //   ++i;
+      //   continue;
+      // }
+
+      // int idxL = minIt->first;
+      // int idxR = maxIt->first;
+      // const auto d = std::abs(nodes[idxL][0]) + std::abs(nodes[idxR][0]);
+      // dimensions->at(i) = d;
 
       // Here we assume that the trench is centered at zero and symmetric with
-      // its vertical axis being the axis of symmetry
+      // its vertical axis being the axis of symmetry int idxL = -1;
       int idxL = -1;
       int idxR = -1;
       for (auto &nb : *neighbors) {
@@ -103,6 +122,7 @@ public:
         const auto d = std::abs(nodes[idxL][0]) + std::abs(nodes[idxR][0]);
         dimensions->at(i) = d;
       }
+
       ++i;
     }
   }
