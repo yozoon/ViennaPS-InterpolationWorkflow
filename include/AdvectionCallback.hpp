@@ -8,7 +8,8 @@
 #include <psCSVWriter.hpp>
 #include <psSmartPointer.hpp>
 
-template <typename NumericType, int D, typename FeatureExtractionType>
+template <typename NumericType, int D, typename FeatureExtractionType,
+          typename WriterType>
 class AdvectionCallback : public psAdvectionCalback<NumericType, D> {
 protected:
   using psAdvectionCalback<NumericType, D>::domain;
@@ -23,23 +24,28 @@ public:
     featureExtraction = passedFeatureExtraction;
   }
 
-  void setDataPtr(psSmartPointer<std::vector<NumericType>> passedDataPtr) {
-    dataPtr = passedDataPtr;
+  void setWriter(psSmartPointer<WriterType> passedWriter) {
+    writer = passedWriter;
+  }
+
+  void setPrefixData(const std::vector<NumericType> &passedPrefixData) {
+    prefixData = passedPrefixData;
   }
 
   void apply() {
     if (!featureExtraction)
       return;
 
-    if (dataPtr) {
+    if (writer) {
       featureExtraction->setDomain(domain);
       featureExtraction->apply();
 
       auto features = featureExtraction->getFeatures();
       if (features) {
-        dataPtr->push_back(processTime / deltaT);
-        std::copy(features->begin(), features->end(),
-                  std::back_inserter(*dataPtr));
+        std::vector<NumericType> row(prefixData.begin(), prefixData.end());
+        row.push_back(counter);
+        std::copy(features->begin(), features->end(), std::back_inserter(row));
+        writer->writeRow(row);
       }
     }
   }
@@ -68,8 +74,9 @@ private:
   NumericType processTime = 0.0;
   NumericType lastUpdateTime = 0.0;
   size_t counter = 0;
+  std::vector<NumericType> prefixData;
 
   psSmartPointer<FeatureExtractionType> featureExtraction = nullptr;
-  psSmartPointer<std::vector<NumericType>> dataPtr = nullptr;
+  psSmartPointer<WriterType> writer = nullptr;
 };
 #endif

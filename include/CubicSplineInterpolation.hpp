@@ -143,7 +143,8 @@ private:
     // RHS matrix (Column major layout!)
     auto B = std::make_unique<NumericType[]>(outputDimension * N);
 
-    auto toColMajIndex = [&](int nrows, int ncols, int row, int col) {
+    auto toColMajIndex = [&](int nrows, [[maybe_unused]] int ncols, int row,
+                             int col) {
       assert(row < nrows && "Matrix row index too large!");
       assert(col < ncols && "Matrix column index too large!");
       return col * nrows + row;

@@ -1,3 +1,4 @@
+#include <functional>
 #include <set>
 #include <vector>
 
@@ -103,21 +104,32 @@ int main() {
   }
 
   {
-    std::vector<NumericType (*)(NumericType, NumericType)> functions;
+    // The function(s) to interpolate
+    std::vector<std::function<NumericType(NumericType, NumericType)>> functions;
     functions.push_back([](NumericType x, NumericType) { return 1. + x * x; });
+    functions.push_back([&](NumericType x, NumericType y) {
+      NumericType xp = x - PI / 2;
+      NumericType yp = y - PI / 2;
+      return std::exp(-(xp * xp + yp * yp) / 2);
+    });
 
     functions.push_back([](NumericType x, NumericType y) {
       return std::sin(x) * std::cos(3. * y);
     });
 
-    auto out = fmt::output_file("points_nd.csv");
+    // Create sample points and save them to a file
+    int nx = 4, ny = 7;
+    NumericType minX = 0.;
+    NumericType maxX = PI;
+    NumericType minY = 0.;
+    NumericType maxY = PI;
 
-    int nx = 4, ny = 6;
+    auto out = fmt::output_file("points_nd.csv");
     std::vector<std::vector<NumericType>> data;
     for (int i = 0; i < nx; ++i) {
-      NumericType x = PI * i / (nx - 1);
+      NumericType x = minX + (maxX - minX) * i / (nx - 1);
       for (int j = 0; j < ny; ++j) {
-        NumericType y = PI * j / (ny - 1);
+        NumericType y = minY + (maxY - minY) * j / (ny - 1);
         std::vector<NumericType> tmp;
         tmp.push_back(x);
         tmp.push_back(y);
@@ -128,42 +140,34 @@ int main() {
       }
     }
 
+    // Instantiate the interpolation class ans set the data
     SplineGridInterpolation<NumericType> sgi;
     sgi.setDataDimensions(2, functions.size());
     sgi.setBCType(SplineBoundaryConditionType::NOT_A_KNOT);
     sgi.setData(
         psSmartPointer<const std::vector<std::vector<NumericType>>>::New(data));
 
+    // Interpolate along a grid
     int resolution = 30;
-    std::vector<std::vector<NumericType>> x;
-    for (int i = 0; i < resolution; ++i) {
-      for (int j = 0; j < resolution; ++j) {
-        x.emplace_back(std::vector<NumericType>{i * PI / (resolution - 1),
-                                                j * PI / (resolution - 1)});
-      }
-    }
 
-    std::vector<std::vector<NumericType>> interpolated;
-    std::vector<std::vector<NumericType>> reference;
-    interpolated.reserve(resolution * resolution);
-    reference.reserve(resolution * resolution);
-    for (auto &pos : x) {
-      reference.push_back({});
-      for (unsigned i = 0; i < functions.size(); ++i)
-        reference.back().push_back(functions[i](pos[0], pos[1]));
-      auto estOpt = sgi.estimate(pos);
-      auto [v, _] = estOpt.value();
-      interpolated.push_back(v);
-    }
+    NumericType overshoot = 0.2;
+    NumericType minXi = minX - overshoot * (maxX - minX);
+    NumericType maxXi = maxX + overshoot * (maxX - minX);
+    NumericType minYi = minY - overshoot * (maxY - minY);
+    NumericType maxYi = maxY + overshoot * (maxY - minY);
 
     auto out2 = fmt::output_file("spline_nd.csv");
-    for (size_t i = 0;
-         i < x.size() && i < reference.size() && i < interpolated.size(); ++i) {
-      auto xi = x.at(i);
-      auto ri = reference.at(i);
-      auto vi = interpolated.at(i);
-      out2.print("{},{},{}\n", fmt::join(xi, ","), fmt::join(ri, ","),
-                 fmt::join(vi, ","));
+    for (int i = 0; i < resolution; ++i) {
+      NumericType x = minXi + (maxXi - minXi) * i / (resolution - 1);
+      for (int j = 0; j < resolution; ++j) {
+        NumericType y = minYi + (maxYi - minYi) * j / (resolution - 1);
+        out2.print("{}, {}", x, y);
+        for (auto &f : functions) {
+          out2.print(",{}", f(x, y));
+        }
+        auto [pred, _] = sgi.estimate(std::vector{x, y}).value();
+        out2.print(",{}\n", fmt::join(pred, ","));
+      }
     }
   }
 }

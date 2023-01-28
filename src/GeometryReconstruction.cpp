@@ -16,6 +16,7 @@ int main() {
 
   Parameters<NumericType> params;
 
+  // Generate the initial trench geometry
   auto geometry = psSmartPointer<psDomain<NumericType, D>>::New();
   psMakeTrench<NumericType, D>(
       geometry, params.gridDelta /* grid delta */, params.xExtent /*x extent*/,
@@ -24,25 +25,23 @@ int main() {
       params.taperAngle /* tapering angle */)
       .apply();
 
+  // Run a physical deposition simulation
   executeProcess<NumericType, D>(geometry, params);
   geometry->printSurface("simulation.vtp");
 
+  // Extract features from the geometry
   FeatureExtraction<NumericType, D> extraction;
   extraction.setDomain(geometry);
   extraction.setNumberOfSamples(numberOfSamples);
   extraction.setEdgeAffinity(4.);
-
   extraction.apply();
 
   auto sampleLocations = extraction.getSampleLocations();
-
   auto features = extraction.getFeatures();
 
   assert(sampleLocations.size() == features->size() - 1);
 
-  /**
-   * Now reconstruct the geometry based on the extracted diameters
-   */
+  // Now reconstruct the geometry based on the extracted features
   NumericType origin[D] = {0.};
   origin[D - 1] = params.processTime + params.trenchHeight;
 
@@ -53,8 +52,6 @@ int main() {
       .apply();
 
   auto reconstruction = psSmartPointer<psDomain<NumericType, D>>::New();
-
   reconstruction->insertNextLevelSet(ls);
-
   reconstruction->printSurface("reconstruction.vtp");
 }

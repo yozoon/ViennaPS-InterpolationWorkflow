@@ -11,22 +11,18 @@
 #include <psCSVDataSource.hpp>
 #include <psDataScaler.hpp>
 #include <psMakeTrench.hpp>
-#include <psNearestNeighborsInterpolation.hpp>
 
 #include "ChamferDistance.hpp"
-#include "CubicSplineInterpolation.hpp"
 #include "FeatureReconstruction.hpp"
 #include "Parameters.hpp"
-#include "TrenchDeposition.hpp"
-
 #include "SplineGridInterpolation.hpp"
+#include "TrenchDeposition.hpp"
 
 namespace fs = std::filesystem;
 
 template <typename NumericType, int D>
 psSmartPointer<lsDomain<NumericType, D>>
 createEmptyLevelset(const Parameters<NumericType> &params) {
-
   double bounds[2 * D];
   bounds[0] = -params.xExtent / 2.;
   bounds[1] = params.xExtent / 2.;
@@ -89,10 +85,6 @@ int main(int argc, char *argv[]) {
     // where it was sampled from (at which relative height)
     auto sampleLocations = dataSource.getPositionalParameters();
 
-    // The number of samples is the number of sample locations plus one, since
-    // we also have the total depth of the resulting trench in the dataset.
-    int numberOfSamples = sampleLocations.size() + 1;
-
     // The input dimension is provided by the csv file named parameter
     // 'InputDim' In our case it is 2 since we use taper angle and sticking
     // probability as input parameters.
@@ -104,130 +96,44 @@ int main(int argc, char *argv[]) {
       std::cout << "'InputDimension' not found in provided data CSV file.\n";
       return EXIT_FAILURE;
     }
+    NumericType extractionInterval;
+    if (auto id = namedParams.find("ExtractionInterval");
+        id != namedParams.end()) {
+      extractionInterval = std::round(id->second);
+    } else {
+      std::cout
+          << "'ExtractionInterval' not found in provided data CSV file.\n";
+      return EXIT_FAILURE;
+    }
 
     // The dimension of the data that is to be interpolated. In our case this
     // are the extracted dimensions at different timesteps (the timesteps are
     // also included in the data itself)
-    int TargetDim = data->at(0).size() - InputDim;
+    int numFeatures = data->at(0).size() - InputDim;
 
     SplineGridInterpolation<NumericType> gridInterpolation;
-    gridInterpolation.setDataDimensions(InputDim, TargetDim);
+    gridInterpolation.setDataDimensions(InputDim, numFeatures);
     gridInterpolation.setData(data);
+    gridInterpolation.setBCType(SplineBoundaryConditionType::NATURAL);
     gridInterpolation.initialize();
-    gridInterpolation.estimate(std::vector{0., 0.});
 
-    // The number of timesteps at which the dimensions were extracted.
-    // Since the data is stored in the pattern (time+samples), we have to
-    // divide by number of samples plus one.
-    int numberOfTimesteps = TargetDim / (numberOfSamples + 1);
+    std::vector<NumericType> evaluationPoint = {
+        params.taperAngle, params.stickingProbability,
+        params.processTime / extractionInterval};
 
-    // ================ Step 1: input interpolation ================ //
-    // This is the point in the Input parameter space where we want to get an
-    // estimate of the geometric dimensions.
-    std::vector<NumericType> x = {params.taperAngle,
-                                  params.stickingProbability};
+    for (auto e : evaluationPoint)
+      std::cout << e << ", ";
+    std::cout << "\n";
 
-    // Interpolate the samples based on the provided input. For this we use
-    // nearest neighbors interpolation.
-    int numberOfNeighbors = 3;
-    NumericType distanceExponent = 2.;
-    psNearestNeighborsInterpolation<NumericType,
-                                    psMedianDistanceScaler<NumericType>>
-        estimator;
-
-    estimator.setNumberOfNeighbors(numberOfNeighbors);
-    estimator.setDistanceExponent(distanceExponent);
-    estimator.setDataDimensions(InputDim, TargetDim);
-    estimator.setData(data);
-
-    if (!estimator.initialize())
+    auto estimationOpt = gridInterpolation.estimate(evaluationPoint);
+    if (!estimationOpt)
       return EXIT_FAILURE;
 
-    auto estimateOpt = estimator.estimate(x);
-    if (!estimateOpt) {
-      std::cout << "Error during estimation.\n";
-      return EXIT_FAILURE;
-    }
+    auto [estimatedFeatures, isInside] = estimationOpt.value();
 
-    auto [result, distance] = estimateOpt.value();
+    std::cout << "Inside: " << isInside << '\n';
+    std::cout << estimatedFeatures.at(0) << "\n";
 
-    std::cout << std::setw(40) << "Distance to nearest data point: ";
-    std::cout << distance << std::endl;
-
-    // ================ Step 2: Time interpolation ================ //
-    int stepSize = (numberOfSamples + 1);
-
-    std::vector<NumericType> timesteps;
-    timesteps.reserve(numberOfTimesteps);
-    std::copy_if(result.begin(), result.end(), std::back_inserter(timesteps),
-                 [=, i = 0](auto) mutable { return (i++ % stepSize) == 0; });
-
-#ifndef LINEAR
-    std::vector<std::vector<NumericType>> dimensionsOverTime;
-    dimensionsOverTime.reserve(numberOfTimesteps);
-
-    for (int i = 0; i < numberOfTimesteps; ++i) {
-      std::vector<NumericType> vec(numberOfSamples);
-      for (int j = 0; j < numberOfSamples; ++j)
-        vec[j] = result[i * stepSize + 1 + j];
-
-      dimensionsOverTime.push_back(vec);
-    }
-
-    CubicSplineInterpolation<NumericType> spline(
-        timesteps, dimensionsOverTime, SplineBoundaryConditionType::NOT_A_KNOT);
-
-    auto interpolated = spline(params.processTime);
-
-    std::vector<NumericType> dimensions(interpolated.begin(),
-                                        interpolated.end());
-
-#else
-    // Since we use regular intervals we can simply take the difference between
-    // the first two timesteps
-    int extractionInterval = timesteps.at(1) - timesteps.at(0);
-
-    // Now determine which two timesteps we should consider for interpolating
-    // along the time axis
-    NumericType extractionStep = params.processTime / extractionInterval;
-
-    int lowerIdx = std::clamp(static_cast<int>(std::floor(extractionStep)) *
-                                  (numberOfSamples + 1),
-                              0, TargetDim - stepSize - 1);
-
-    int upperIdx = std::clamp(static_cast<int>(std::ceil(extractionStep)) *
-                                  (numberOfSamples + 1),
-                              0, TargetDim - stepSize - 1);
-    NumericType distanceToLower = 1.0 * lowerIdx - extractionStep;
-    NumericType distanceToUpper = 1.0 * extractionStep - upperIdx;
-    NumericType totalDistance = distanceToUpper + distanceToLower;
-
-    std::vector<NumericType> dimensions;
-
-    // Copy the data corresponding to the dimensions of the lower timestep
-    auto lowerDimensions =
-        psSmartPointer<std::vector<NumericType>>::New(numberOfSamples);
-    for (int i = 0; i < numberOfSamples; ++i)
-      lowerDimensions->at(i) = result.at(lowerIdx + 1 + i);
-
-    if (totalDistance > 0) {
-      // Copy the data corresponding to the dimensions of the upper timestep
-      auto upperDimensions =
-          psSmartPointer<std::vector<NumericType>>::New(numberOfSamples);
-      for (int i = 0; i < numberOfSamples; ++i)
-        upperDimensions->at(i) = result.at(upperIdx + 1 + i);
-
-      // Now for each individual dimension do linear interpolation between upper
-      // and lower value based on the relative distance
-      for (unsigned i = 0; i < lowerDimensions->size(); ++i)
-        dimensions.emplace_back((distanceToUpper * lowerDimensions->at(i) +
-                                 distanceToLower * upperDimensions->at(i)) /
-                                totalDistance);
-    } else {
-      std::copy(lowerDimensions->begin(), lowerDimensions->end(),
-                std::back_inserter(dimensions));
-    }
-#endif
     NumericType origin[D] = {0.};
     origin[D - 1] = params.processTime + params.trenchHeight;
 
@@ -236,16 +142,14 @@ int main(int argc, char *argv[]) {
     auto geometry = psSmartPointer<lsDomain<NumericType, D>>::New(substrate);
 
     FeatureReconstruction<NumericType, D>(geometry, origin, sampleLocations,
-                                          dimensions)
+                                          estimatedFeatures)
         .apply();
 
     interpolatedGeometry->insertNextLevelSet(geometry);
-#ifndef LINEAR
-    interpolatedGeometry->printSurface("interpolated_spline.vtp");
-#else
-    interpolatedGeometry->printSurface("interpolated_linear.vtp");
-#endif
+
+    interpolatedGeometry->printSurface("interpolated.vtp");
   }
+
   auto stop = Clock::now();
   auto interpDuration = Duration(stop - start).count();
   std::cout << std::setw(40) << "Interpolation and reconstruction took: ";
