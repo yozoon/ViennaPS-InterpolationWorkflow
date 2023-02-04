@@ -113,9 +113,48 @@ int main(int argc, char *argv[]) {
 
     SplineGridInterpolation<NumericType> gridInterpolation;
     gridInterpolation.setDataDimensions(InputDim, numFeatures);
+    gridInterpolation.setBCType(SplineBoundaryConditionType::NOT_A_KNOT);
     gridInterpolation.setData(data);
-    gridInterpolation.setBCType(SplineBoundaryConditionType::NATURAL);
     gridInterpolation.initialize();
+
+    {
+      psCSVWriter<NumericType> writer("test.csv");
+
+      unsigned resolution = 20;
+      auto getMinMax = [](auto &data,
+                          unsigned i) -> std::pair<NumericType, NumericType> {
+        auto [min, max] =
+            std::minmax_element(data->begin(), data->end(),
+                                [=](auto &a, auto &b) { return a[i] < b[i]; });
+        if (min != data->end() && max != data->end())
+          return std::pair{min->at(i), max->at(i)};
+        return {};
+      };
+
+      auto [min0, max0] = getMinMax(data, 0);
+      auto [min1, max1] = getMinMax(data, 1);
+      auto [min2, max2] = getMinMax(data, 2);
+
+      for (unsigned i = 0; i < 12; ++i) {
+        NumericType x0 = min0 + (max0 - min0) * i / (resolution - 1);
+        for (unsigned j = 0; j < resolution; ++j) {
+          NumericType x1 = min1 + (max1 - min1) * j / (resolution - 1);
+          for (unsigned k = 0; k < 10; ++k) {
+            NumericType x2 = min2 + (max2 - min2) * k / (resolution - 1);
+            std::vector<NumericType> evaluationPoint = {x0, x1, x2};
+            auto estimationOpt = gridInterpolation.estimate(evaluationPoint);
+            if (!estimationOpt)
+              return EXIT_FAILURE;
+
+            auto [estimatedFeatures, isInside] = estimationOpt.value();
+            evaluationPoint.insert(evaluationPoint.end(),
+                                   estimatedFeatures.begin(),
+                                   estimatedFeatures.end());
+            writer.writeRow(evaluationPoint);
+          }
+        }
+      }
+    }
 
     std::vector<NumericType> evaluationPoint = {
         params.taperAngle, params.stickingProbability,

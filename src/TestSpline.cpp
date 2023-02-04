@@ -105,17 +105,20 @@ int main() {
 
   {
     // The function(s) to interpolate
-    std::vector<std::function<NumericType(NumericType, NumericType)>> functions;
-    functions.push_back([](NumericType x, NumericType) { return 1. + x * x; });
-    functions.push_back([&](NumericType x, NumericType y) {
+    std::vector<
+        std::function<NumericType(NumericType, NumericType, NumericType)>>
+        functions;
+    functions.push_back(
+        [](NumericType x, NumericType, NumericType) { return 1. + x * x; });
+    functions.push_back([&](NumericType x, NumericType y, NumericType) {
       NumericType xp = x - PI / 2;
       NumericType yp = y - PI / 2;
       return std::exp(-(xp * xp + yp * yp) / 2);
     });
-
-    functions.push_back([](NumericType x, NumericType y) {
-      return std::sin(x) * std::cos(3. * y);
-    });
+    for (int i = 0; i < 27; ++i)
+      functions.push_back([](NumericType x, NumericType y, NumericType z) {
+        return std::sin(x) * std::cos(3. * y) + z * z;
+      });
 
     // Create sample points and save them to a file
     int nx = 4, ny = 7;
@@ -130,22 +133,27 @@ int main() {
       NumericType x = minX + (maxX - minX) * i / (nx - 1);
       for (int j = 0; j < ny; ++j) {
         NumericType y = minY + (maxY - minY) * j / (ny - 1);
-        std::vector<NumericType> tmp;
-        tmp.push_back(x);
-        tmp.push_back(y);
-        out.print("{},{}\n", x, y);
-        for (unsigned i = 0; i < functions.size(); ++i)
-          tmp.push_back(functions[i](x, y));
-        data.push_back(tmp);
+        for (int k = 0; k < ny; ++k) {
+          NumericType z = minY + (maxY - minY) * k / (ny - 1);
+          std::vector<NumericType> tmp;
+          tmp.push_back(x);
+          tmp.push_back(y);
+          tmp.push_back(z);
+          for (auto &f : functions)
+            tmp.push_back(f(x, y, z));
+          out.print("{}\n", fmt::join(tmp, ","));
+          data.push_back(tmp);
+        }
       }
     }
 
     // Instantiate the interpolation class ans set the data
     SplineGridInterpolation<NumericType> sgi;
-    sgi.setDataDimensions(2, functions.size());
+    sgi.setDataDimensions(3, functions.size());
     sgi.setBCType(SplineBoundaryConditionType::NOT_A_KNOT);
     sgi.setData(
         psSmartPointer<const std::vector<std::vector<NumericType>>>::New(data));
+    sgi.initialize();
 
     // Interpolate along a grid
     int resolution = 30;
@@ -161,10 +169,11 @@ int main() {
       NumericType x = minXi + (maxXi - minXi) * i / (resolution - 1);
       for (int j = 0; j < resolution; ++j) {
         NumericType y = minYi + (maxYi - minYi) * j / (resolution - 1);
-        out2.print("{}, {}", x, y);
-        for (auto &f : functions) {
-          out2.print(",{}", f(x, y));
-        }
+        NumericType z = 0;
+        out2.print("{}, {}, {}", x, y, z);
+        // for (auto &f : functions) {
+        //   out2.print(",{}", f(x, y, z));
+        // }
         auto [pred, _] = sgi.estimate(std::vector{x, y}).value();
         out2.print(",{}\n", fmt::join(pred, ","));
       }
