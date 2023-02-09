@@ -114,105 +114,74 @@ int main(int argc, char *argv[]) {
     // also included in the data itself)
     int numFeatures = data->at(0).size() - InputDim;
 
-    // std::vector<std::set<NumericType>> uniqueValues(InputDim);
-    // std::vector<std::vector<NumericType>> sortedData(data->begin(),
-    //                                                  data->end());
-    // SplineGridInterpolation<NumericType>::rearrange(
-    //     sortedData.begin(), sortedData.end(), 0, uniqueValues, InputDim,
-    //     true);
+    std::vector<std::set<NumericType>> uniqueValues(InputDim);
+    std::vector<std::vector<NumericType>> sortedData(data->begin(),
+                                                     data->end());
+    SplineGridInterpolation<NumericType>::rearrange(
+        sortedData.begin(), sortedData.end(), 0, uniqueValues, InputDim, true);
 
-    // auto &uniqueTimesteps = uniqueValues[InputDim - 1];
+    auto &uniqueTimesteps = uniqueValues[InputDim - 1];
 
-    // // Rearrange the data such that we have a line for each unique input
-    // // configuration. Features of subsequent timesteps are appended to each
-    // // line.
-    // std::vector<std::vector<NumericType>> rearrangedData;
-    // unsigned i = 0;
-    // auto timeIt = uniqueTimesteps.begin();
-    // for (auto &d : sortedData) {
-    //   if (i == 0) {
-    //     rearrangedData.emplace_back(d.begin(), d.end());
-    //   } else {
-    //     std::copy(std::next(d.begin(), InputDim - 1), d.end(),
-    //               std::back_inserter(rearrangedData.back()));
-    //   }
-    //   if (d[InputDim - 1] != *timeIt) {
-    //     std::cout << "Mismatch in time data\n";
-    //     break;
-    //   }
-    //   ++i;
-    //   ++timeIt;
-    //   if (timeIt == uniqueTimesteps.end()) {
-    //     i = 0;
-    //     timeIt = uniqueTimesteps.begin();
-    //   }
-    // }
-    // std::cout << rearrangedData.size() << ", " << rearrangedData[0].size()
-    //           << '\n';
+    // Rearrange the data such that we have a line for each unique input
+    // configuration. Features of subsequent timesteps are appended to each
+    // line.
+    std::vector<std::vector<NumericType>> rearrangedData;
+    unsigned i = 0;
+    auto timeIt = uniqueTimesteps.begin();
+    for (auto &d : sortedData) {
+      if (i == 0) {
+        rearrangedData.emplace_back(d.begin(), d.end());
+      } else {
+        std::copy(std::next(d.begin(), InputDim - 1), d.end(),
+                  std::back_inserter(rearrangedData.back()));
+      }
+      if (d[InputDim - 1] != *timeIt) {
+        std::cout << "Mismatch in time data\n";
+        break;
+      }
+      ++i;
+      ++timeIt;
+      if (timeIt == uniqueTimesteps.end()) {
+        i = 0;
+        timeIt = uniqueTimesteps.begin();
+      }
+    }
+    std::cout << rearrangedData.size() << ", " << rearrangedData[0].size()
+              << '\n';
 
     SplineGridInterpolation<NumericType> gridInterpolation;
-    gridInterpolation.setDataDimensions(InputDim, numFeatures);
-    gridInterpolation.setData(data);
-    // gridInterpolation.setDataDimensions(InputDim - 1,
-    // rearrangedData[0].size() -
-    //                                                       InputDim + 1);
-    // gridInterpolation.setData(
-    //     psSmartPointer<const decltype(rearrangedData)>::New(rearrangedData));
+    gridInterpolation.setDataDimensions(InputDim - 1, rearrangedData[0].size() -
+                                                          InputDim + 1);
+    gridInterpolation.setData(
+        psSmartPointer<const decltype(rearrangedData)>::New(rearrangedData));
     gridInterpolation.setBCType(SplineBoundaryConditionType::NOT_A_KNOT);
     gridInterpolation.initialize();
 
-#ifdef PRINT_GRID
-    {
-      psCSVWriter<NumericType> writer("test.csv");
-
-      auto getMinMax = [](auto &data,
-                          unsigned i) -> std::pair<NumericType, NumericType> {
-        auto [min, max] =
-            std::minmax_element(data->begin(), data->end(),
-                                [=](auto &a, auto &b) { return a[i] < b[i]; });
-        if (min != data->end() && max != data->end())
-          return std::pair{min->at(i), max->at(i)};
-        return {};
-      };
-
-      auto [min0, max0] = getMinMax(data, 0);
-      auto [min1, max1] = getMinMax(data, 1);
-      auto [min2, max2] = getMinMax(data, 2);
-
-      auto uniqueValues = gridInterpolation.getUniqueValues();
-      unsigned int res0 = 24;
-      unsigned int res1 = 20;
-      unsigned int res2 = 9;
-      for (unsigned i = 0; i < res0; ++i) {
-        NumericType x0 = min0 + (max0 - min0) * i / (res0 - 1);
-        for (unsigned j = 0; j < res1; ++j) {
-          NumericType x1 = min1 + (max1 - min1) * j / (res1 - 1);
-          for (unsigned k = 0; k < res2; ++k) {
-            NumericType x2 = min2 + (max2 - min2) * k / (res2 - 1);
-            std::vector<NumericType> evaluationPoint = {x0, x1, x2};
-            auto estimationOpt = gridInterpolation.estimate(evaluationPoint);
-            if (!estimationOpt)
-              return EXIT_FAILURE;
-
-            auto [estimatedFeatures, _] = estimationOpt.value();
-            std::copy(estimatedFeatures.begin(), estimatedFeatures.end(),
-                      std::back_inserter(evaluationPoint));
-            writer.writeRow(evaluationPoint);
-          }
-        }
-      }
-    }
-#endif
-
-    std::vector<NumericType> evaluationPoint = {
-        params.taperAngle, params.stickingProbability,
-        params.processTime / extractionInterval};
+    std::vector<NumericType> evaluationPoint = {params.taperAngle,
+                                                params.stickingProbability};
 
     auto estimationOpt = gridInterpolation.estimate(evaluationPoint);
     if (!estimationOpt)
       return EXIT_FAILURE;
 
-    auto [estimatedFeatures, isInside] = estimationOpt.value();
+    auto [estimatedTimedFeatures, isInside] = estimationOpt.value();
+
+    std::cout << estimatedTimedFeatures.size() << std::endl;
+
+    std::vector<NumericType> timeSteps(uniqueTimesteps.begin(),
+                                       uniqueTimesteps.end());
+    std::vector<std::vector<NumericType>> timeData;
+    for (unsigned i = 0; i < uniqueTimesteps.size(); ++i) {
+      timeData.emplace_back(
+          std::next(estimatedTimedFeatures.begin(), i * (numFeatures + 1) + 1),
+          std::next(estimatedTimedFeatures.begin(),
+                    (i + 1) * (numFeatures + 1)));
+    }
+
+    auto estimatedFeatures = CubicSplineInterpolation<NumericType>(
+        timeSteps, timeData)(params.processTime / extractionInterval);
+
+    std::cout << estimatedFeatures.size() << '\n';
 
     NumericType origin[D] = {0.};
     origin[D - 1] = params.processTime + params.trenchHeight;
