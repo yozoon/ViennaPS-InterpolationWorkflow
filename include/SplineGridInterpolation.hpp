@@ -18,27 +18,12 @@ template <typename NumericType> class SplineGridInterpolation {
   using VectorPtr = psSmartPointer<std::vector<ItemType>>;
   using ConstPtr = psSmartPointer<const std::vector<ItemType>>;
 
-  std::vector<SplineBoundaryConditionType> bcTypes;
-
-  SizeType inputDim{0};
-  SizeType outputDim{0};
-
-  ConstPtr data = nullptr;
-
-  bool dataChanged = true;
-
-  // The unique values along each dimension
-  std::vector<std::set<NumericType>> uniqueValues;
-
-  // A local copy of the provided data
-  VectorType localData;
-
-  // For rectilinear grid interpolation to work, we first have to ensure that
-  // our input coordinates are arranged in a certain way
+public:
   // Future improvement: parallelize the recursive sorting using OpenMP taks
-  bool rearrange(typename VectorType::iterator start,
-                 typename VectorType::iterator end, SizeType axis,
-                 bool capture) {
+  static bool rearrange(typename VectorType::iterator start,
+                        typename VectorType::iterator end, SizeType axis,
+                        std::vector<std::set<NumericType>> &uniqueValues,
+                        SizeType inputDim, bool capture) {
     bool equalSize = true;
 
     // We only reorder based on the input dimension, not the output dimension
@@ -82,13 +67,30 @@ template <typename NumericType> class SplineGridInterpolation {
       // the first leaf in each level of the tree is instructed to capture the
       // unique values.
       for (unsigned i = 1; i < rangeBreaks.size(); ++i)
-        equalSize = equalSize && rearrange(start + rangeBreaks[i - 1],
-                                           start + rangeBreaks[i], axis + 1,
-                                           capture && (i == 1));
+        equalSize =
+            equalSize &&
+            rearrange(start + rangeBreaks[i - 1], start + rangeBreaks[i],
+                      axis + 1, uniqueValues, inputDim, capture && (i == 1));
     }
 
     return equalSize;
   }
+
+private:
+  std::vector<SplineBoundaryConditionType> bcTypes;
+
+  SizeType inputDim{0};
+  SizeType outputDim{0};
+
+  ConstPtr data = nullptr;
+
+  bool dataChanged = true;
+
+  // The unique values along each dimension
+  std::vector<std::set<NumericType>> uniqueValues;
+
+  // A local copy of the provided data
+  VectorType localData;
 
 public:
   SplineGridInterpolation() {}
@@ -100,7 +102,11 @@ public:
     bcTypes = passedBCTypes;
   }
 
-  auto getUniqueValues() const { return uniqueValues; }
+  std::vector<std::set<NumericType>> getUniqueValues() const {
+    return uniqueValues;
+  }
+
+  ConstPtr getSortedData() const { return ConstPtr::New(localData); }
 
   void setBCType(SplineBoundaryConditionType passedBCType) {
     bcTypes = std::vector<SplineBoundaryConditionType>(inputDim, passedBCType);
@@ -146,7 +152,8 @@ public:
 
     uniqueValues.resize(inputDim);
 
-    auto equalSize = rearrange(localData.begin(), localData.end(), 0, true);
+    auto equalSize = rearrange(localData.begin(), localData.end(), 0,
+                               uniqueValues, inputDim, true);
 
     if (!equalSize) {
       std::cout << "SplineGridInterpolation: Data is not arranged "
@@ -179,6 +186,7 @@ public:
         if (input[i] < *(uniqueValues[i].begin()) ||
             input[i] > *(uniqueValues[i].rbegin())) {
           isInside = false;
+          break;
         }
       } else {
         return {};

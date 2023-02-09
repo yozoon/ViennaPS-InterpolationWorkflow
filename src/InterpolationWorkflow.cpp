@@ -13,10 +13,13 @@
 #include <psMakeTrench.hpp>
 
 #include "ChamferDistance.hpp"
+#include "CubicSplineInterpolation.hpp"
 #include "FeatureReconstruction.hpp"
 #include "Parameters.hpp"
 #include "SplineGridInterpolation.hpp"
 #include "TrenchDeposition.hpp"
+
+// #define PRINT_GRID
 
 namespace fs = std::filesystem;
 
@@ -111,16 +114,57 @@ int main(int argc, char *argv[]) {
     // also included in the data itself)
     int numFeatures = data->at(0).size() - InputDim;
 
+    // std::vector<std::set<NumericType>> uniqueValues(InputDim);
+    // std::vector<std::vector<NumericType>> sortedData(data->begin(),
+    //                                                  data->end());
+    // SplineGridInterpolation<NumericType>::rearrange(
+    //     sortedData.begin(), sortedData.end(), 0, uniqueValues, InputDim,
+    //     true);
+
+    // auto &uniqueTimesteps = uniqueValues[InputDim - 1];
+
+    // // Rearrange the data such that we have a line for each unique input
+    // // configuration. Features of subsequent timesteps are appended to each
+    // // line.
+    // std::vector<std::vector<NumericType>> rearrangedData;
+    // unsigned i = 0;
+    // auto timeIt = uniqueTimesteps.begin();
+    // for (auto &d : sortedData) {
+    //   if (i == 0) {
+    //     rearrangedData.emplace_back(d.begin(), d.end());
+    //   } else {
+    //     std::copy(std::next(d.begin(), InputDim - 1), d.end(),
+    //               std::back_inserter(rearrangedData.back()));
+    //   }
+    //   if (d[InputDim - 1] != *timeIt) {
+    //     std::cout << "Mismatch in time data\n";
+    //     break;
+    //   }
+    //   ++i;
+    //   ++timeIt;
+    //   if (timeIt == uniqueTimesteps.end()) {
+    //     i = 0;
+    //     timeIt = uniqueTimesteps.begin();
+    //   }
+    // }
+    // std::cout << rearrangedData.size() << ", " << rearrangedData[0].size()
+    //           << '\n';
+
     SplineGridInterpolation<NumericType> gridInterpolation;
     gridInterpolation.setDataDimensions(InputDim, numFeatures);
-    gridInterpolation.setBCType(SplineBoundaryConditionType::NOT_A_KNOT);
     gridInterpolation.setData(data);
+    // gridInterpolation.setDataDimensions(InputDim - 1,
+    // rearrangedData[0].size() -
+    //                                                       InputDim + 1);
+    // gridInterpolation.setData(
+    //     psSmartPointer<const decltype(rearrangedData)>::New(rearrangedData));
+    gridInterpolation.setBCType(SplineBoundaryConditionType::NOT_A_KNOT);
     gridInterpolation.initialize();
 
+#ifdef PRINT_GRID
     {
       psCSVWriter<NumericType> writer("test.csv");
 
-      unsigned resolution = 20;
       auto getMinMax = [](auto &data,
                           unsigned i) -> std::pair<NumericType, NumericType> {
         auto [min, max] =
@@ -135,34 +179,34 @@ int main(int argc, char *argv[]) {
       auto [min1, max1] = getMinMax(data, 1);
       auto [min2, max2] = getMinMax(data, 2);
 
-      for (unsigned i = 0; i < 12; ++i) {
-        NumericType x0 = min0 + (max0 - min0) * i / (resolution - 1);
-        for (unsigned j = 0; j < resolution; ++j) {
-          NumericType x1 = min1 + (max1 - min1) * j / (resolution - 1);
-          for (unsigned k = 0; k < 10; ++k) {
-            NumericType x2 = min2 + (max2 - min2) * k / (resolution - 1);
+      auto uniqueValues = gridInterpolation.getUniqueValues();
+      unsigned int res0 = 24;
+      unsigned int res1 = 20;
+      unsigned int res2 = 9;
+      for (unsigned i = 0; i < res0; ++i) {
+        NumericType x0 = min0 + (max0 - min0) * i / (res0 - 1);
+        for (unsigned j = 0; j < res1; ++j) {
+          NumericType x1 = min1 + (max1 - min1) * j / (res1 - 1);
+          for (unsigned k = 0; k < res2; ++k) {
+            NumericType x2 = min2 + (max2 - min2) * k / (res2 - 1);
             std::vector<NumericType> evaluationPoint = {x0, x1, x2};
             auto estimationOpt = gridInterpolation.estimate(evaluationPoint);
             if (!estimationOpt)
               return EXIT_FAILURE;
 
-            auto [estimatedFeatures, isInside] = estimationOpt.value();
-            evaluationPoint.insert(evaluationPoint.end(),
-                                   estimatedFeatures.begin(),
-                                   estimatedFeatures.end());
+            auto [estimatedFeatures, _] = estimationOpt.value();
+            std::copy(estimatedFeatures.begin(), estimatedFeatures.end(),
+                      std::back_inserter(evaluationPoint));
             writer.writeRow(evaluationPoint);
           }
         }
       }
     }
+#endif
 
     std::vector<NumericType> evaluationPoint = {
         params.taperAngle, params.stickingProbability,
         params.processTime / extractionInterval};
-
-    for (auto e : evaluationPoint)
-      std::cout << e << ", ";
-    std::cout << "\n";
 
     auto estimationOpt = gridInterpolation.estimate(evaluationPoint);
     if (!estimationOpt)
@@ -170,22 +214,18 @@ int main(int argc, char *argv[]) {
 
     auto [estimatedFeatures, isInside] = estimationOpt.value();
 
-    std::cout << "Inside: " << isInside << '\n';
-    std::cout << estimatedFeatures.at(0) << "\n";
-
     NumericType origin[D] = {0.};
     origin[D - 1] = params.processTime + params.trenchHeight;
 
     auto substrate = createEmptyLevelset<NumericType, D>(params);
-    interpolatedGeometry->insertNextLevelSet(substrate);
     auto geometry = psSmartPointer<lsDomain<NumericType, D>>::New(substrate);
 
     FeatureReconstruction<NumericType, D>(geometry, origin, sampleLocations,
                                           estimatedFeatures)
         .apply();
 
+    interpolatedGeometry->insertNextLevelSet(substrate);
     interpolatedGeometry->insertNextLevelSet(geometry);
-
     interpolatedGeometry->printSurface("interpolated.vtp");
   }
 
@@ -207,8 +247,6 @@ int main(int argc, char *argv[]) {
         .apply();
 
     referenceGeometry->printSurface("initial.vtp");
-
-    params.processTime = params.processTime / params.stickingProbability;
 
     executeProcess<NumericType, D>(referenceGeometry, params);
     referenceGeometry->printSurface("reference.vtp");
