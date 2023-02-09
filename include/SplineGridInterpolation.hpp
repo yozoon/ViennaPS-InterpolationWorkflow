@@ -100,6 +100,8 @@ public:
     bcTypes = passedBCTypes;
   }
 
+  auto getUniqueValues() const { return uniqueValues; }
+
   void setBCType(SplineBoundaryConditionType passedBCType) {
     bcTypes = std::vector<SplineBoundaryConditionType>(inputDim, passedBCType);
   }
@@ -188,29 +190,28 @@ public:
 
     // Copy only the output dimensions of the data into a new temporary data
     // vector
-    std::vector<std::vector<NumericType>> tmpData(numPoints);
-    for (SizeType i = 0; i < numPoints; ++i) {
-      tmpData[i].reserve(outputDim);
-      for (SizeType j = 0; j < outputDim; ++j)
-        tmpData[i].push_back(localData[i][inputDim + j]);
+    std::vector<std::vector<NumericType>> tmpData;
+    tmpData.reserve(numPoints);
+    for (auto &ld : localData) {
+      tmpData.emplace_back(std::next(ld.begin(), inputDim), ld.end());
     }
 
-    SizeType stride = 1;
-    SizeType numRemaining = numPoints;
+    SizeType numberOfSplines = numPoints;
+    SizeType numUniqueAlongPreviousAxis = 1;
     for (int i = inputDim - 1; i >= 0; --i) {
       // The knots used by the spline interpolation are just the unique values
       // along the current axis
       std::vector<NumericType> x(uniqueValues[i].begin(),
                                  uniqueValues[i].end());
       SizeType numUniqueAlongAxis = x.size();
-      numRemaining /= numUniqueAlongAxis;
-      stride *= numUniqueAlongAxis;
-      for (SizeType j = 0; j < numRemaining; ++j) {
+      numberOfSplines /= numUniqueAlongAxis;
+      for (SizeType j = 0; j < numberOfSplines; ++j) {
         // Copy the appropriate data points from the temporary data vector
         std::vector<std::vector<NumericType>> y;
         y.reserve(numUniqueAlongAxis);
         for (SizeType k = 0; k < numUniqueAlongAxis; ++k)
-          y.push_back(tmpData.at(j * stride + k));
+          y.push_back(tmpData.at(j * numUniqueAlongAxis +
+                                 k * numUniqueAlongPreviousAxis));
 
         // Instantiate the spline interpolation
         CubicSplineInterpolation<NumericType> interpolation(x, y, bcTypes[i]);
@@ -219,6 +220,7 @@ public:
         // can use it as input in the next interpolation iteration.
         tmpData[j] = interpolation(input[i]);
       }
+      numUniqueAlongAxis = numUniqueAlongAxis;
     }
 
     return {{tmpData[0], isInside}};
