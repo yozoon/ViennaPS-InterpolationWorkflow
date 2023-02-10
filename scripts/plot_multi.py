@@ -8,6 +8,9 @@ import matplotlib as mpl
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy as sp
+
+logging.basicConfig(level=logging.INFO)
 
 
 @dataclass(slots=True, frozen=True)
@@ -161,6 +164,71 @@ def plot_2d(
     return ax, mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
 
 
+def plot_3d(
+    fig: mpl.figure.Figure,  # figure to plot on
+    gspec: gridspec.SubplotSpec,  # subplot specification
+    x: np.ndarray,
+    y: np.ndarray,
+    z: np.ndarray,  # data to plot, as a NumPy array
+    # extent: tuple[float, ...],  # extent of the plotted data
+    points: Optional[np.ndarray] = None,  # points to plot, as NumPy array
+) -> tuple[mpl.axes.Axes, mpl.cm.ScalarMappable]:
+    """Plots an image of the given data on a subplot of the given figure with the data
+    points overlayed as scatter plot.
+
+    Args:
+        fig: The figure to plot on.
+        gspec: The subplot specification for the figure.
+        points: The points to plot, as a NumPy array.
+        data: The data to plot, as a NumPy array.
+        extent: The extent of the plotted data, as a tuple of floats in the form (xmin,
+            xmax, ymin, ymax).
+
+    Returns:
+        A tuple containing the Axes object for the subplot and a scalar mappable object
+        for the plotted data.
+    """
+    # create a normalization object for the data
+    norm = mpl.colors.Normalize(vmin=np.min(z), vmax=np.max(z))
+
+    # create a colormap object
+    # cmap = mpl.colormaps["jet"]
+    cmap = plt.get_cmap("viridis")
+
+    # add a subplot to the figure and assign it to the variable ax
+    ax = fig.add_subplot(gspec, projection="3d")
+
+    # set the title and labels for the subplot
+    ax.set_title("Predicted value")
+    ax.set_xlabel("$x_0$")
+    ax.set_ylabel("$x_1$")
+    ax.set_zlabel("$target$")
+
+    # plot the data as an image on the subplot
+    ax.plot_surface(
+        x,
+        y,
+        z,
+        rstride=1,
+        cstride=1,
+        cmap=cmap,
+        norm=norm,
+    )
+
+    if points is not None:
+        ax.scatter3D(
+            points[:, 0],
+            points[:, 1],
+            points[:, 2],
+            # 1,
+            color="k",
+            marker="^",
+        )
+
+    # return the subplot and the scalar mappable object
+    return ax, mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
+
+
 def main(args: argparse.Namespace) -> None:
     data = np.loadtxt(args.data_file, delimiter=",")
 
@@ -188,6 +256,11 @@ def main(args: argparse.Namespace) -> None:
 
     # Create a mask
     mask = np.full(data.shape[0], fill_value=True)
+
+    points_mask = None
+    if points is not None:
+        points_mask = np.full(points.shape[0], fill_value=True)
+
     for i, (s, u) in enumerate(zip(input_descriptor.slices, unique_inputs)):
         if input_descriptor.is_x(i):
             # Skip the line corresponding to x0 or x1
@@ -199,9 +272,11 @@ def main(args: argparse.Namespace) -> None:
             )
             return
         mask = mask & (data[:, i] == u[s])
+        if points is not None:
+            points_mask = points_mask & (points[:, i] == u[s])
 
     target_dim = args.target_dim
-    if target_dim < len(input_descriptor.slices):
+    if 0 <= target_dim < len(input_descriptor.slices):
         logging.warning(
             "The provided target dimension lies within the range of input dimensions."
         )
@@ -233,19 +308,36 @@ def main(args: argparse.Namespace) -> None:
         else:
             dat = dat.reshape(shape)
 
+        if points is not None:
+            points = points[points_mask][
+                :, [input_descriptor.x0, input_descriptor.x1, target_dim]
+            ]
+
         fig = plt.figure()
 
         # Create a GridSpec object for the figure
         gspec = gridspec.GridSpec(1, 8, figure=fig)
 
-        # Plot the value data on the first subplot
-        _, sm = plot_2d(
+        x, y = np.meshgrid(
+            unique_inputs[input_descriptor.x0], unique_inputs[input_descriptor.x1]
+        )
+        _, sm = plot_3d(
             fig=fig,
             gspec=gspec[0, :-1],
-            data=dat,
-            extent=extent,
+            x=x,
+            y=y,
+            z=dat.T,
             points=points,
         )
+
+        # Plot the value data on the first subplot
+        # _, sm = plot_2d(
+        #     fig=fig,
+        #     gspec=gspec[0, :-1],
+        #     data=dat,
+        #     extent=extent,
+        #     points=points,
+        # )
 
         # Add a colorbar for the value data
         fig.colorbar(
@@ -261,5 +353,4 @@ def main(args: argparse.Namespace) -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     main(create_parser().parse_args())

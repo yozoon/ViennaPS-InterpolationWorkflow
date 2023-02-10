@@ -32,21 +32,26 @@ public:
     prefixData = passedPrefixData;
   }
 
+  void setDataPtr(psSmartPointer<std::vector<NumericType>> passedDataPtr) {
+    dataPtr = passedDataPtr;
+  }
+
   void apply() {
     if (!featureExtraction)
       return;
 
-    if (writer) {
-      featureExtraction->setDomain(domain);
-      featureExtraction->apply();
+    featureExtraction->setDomain(domain);
+    featureExtraction->apply();
 
-      auto features = featureExtraction->getFeatures();
-      if (features) {
-        std::vector<NumericType> row(prefixData.begin(), prefixData.end());
-        row.push_back(counter);
-        std::copy(features->begin(), features->end(), std::back_inserter(row));
+    auto features = featureExtraction->getFeatures();
+    if (features) {
+      std::vector<NumericType> row(prefixData.begin(), prefixData.end());
+      row.push_back(counter);
+      std::copy(features->begin(), features->end(), std::back_inserter(row));
+      if (writer)
         writer->writeRow(row);
-      }
+      if (dataPtr)
+        std::copy(row.begin(), row.end(), std::back_inserter(*dataPtr));
     }
   }
 
@@ -78,5 +83,6 @@ private:
 
   psSmartPointer<FeatureExtractionType> featureExtraction = nullptr;
   psSmartPointer<WriterType> writer = nullptr;
+  psSmartPointer<std::vector<NumericType>> dataPtr = nullptr;
 };
 #endif

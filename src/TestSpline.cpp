@@ -121,11 +121,13 @@ int main() {
       });
 
     // Create sample points and save them to a file
-    int nx = 4, ny = 7;
+    int nx = 4, ny = 7, nz = 5;
     NumericType minX = 0.;
     NumericType maxX = PI;
     NumericType minY = 0.;
     NumericType maxY = PI;
+    NumericType minZ = 0.;
+    NumericType maxZ = PI;
 
     auto out = fmt::output_file("points_nd.csv");
     std::vector<std::vector<NumericType>> data;
@@ -133,8 +135,8 @@ int main() {
       NumericType x = minX + (maxX - minX) * i / (nx - 1);
       for (int j = 0; j < ny; ++j) {
         NumericType y = minY + (maxY - minY) * j / (ny - 1);
-        for (int k = 0; k < ny; ++k) {
-          NumericType z = minY + (maxY - minY) * k / (ny - 1);
+        for (int k = 0; k < nz; ++k) {
+          NumericType z = minZ + (maxZ - minZ) * k / (nz - 1);
           std::vector<NumericType> tmp;
           tmp.push_back(x);
           tmp.push_back(y);
@@ -156,20 +158,21 @@ int main() {
     sgi.initialize();
 
     // Interpolate along a grid
-    int resolution = 30;
+    int resX = 30;
+    int resY = 30;
 
-    NumericType overshoot = 0.2;
+    NumericType overshoot = 0.0;
     NumericType minXi = minX - overshoot * (maxX - minX);
     NumericType maxXi = maxX + overshoot * (maxX - minX);
     NumericType minYi = minY - overshoot * (maxY - minY);
     NumericType maxYi = maxY + overshoot * (maxY - minY);
 
     auto out2 = fmt::output_file("spline_nd.csv");
-    for (int i = 0; i < resolution; ++i) {
-      NumericType x = minXi + (maxXi - minXi) * i / (resolution - 1);
-      for (int j = 0; j < resolution; ++j) {
-        NumericType y = minYi + (maxYi - minYi) * j / (resolution - 1);
-        NumericType z = 0;
+    for (int i = 0; i < resX; ++i) {
+      NumericType x = minXi + (maxXi - minXi) * i / (resX - 1);
+      for (int j = 0; j < resY; ++j) {
+        NumericType y = minYi + (maxYi - minYi) * j / (resY - 1);
+        NumericType z = 0.;
         out2.print("{}, {}, {}", x, y, z);
         // for (auto &f : functions) {
         //   out2.print(",{}", f(x, y, z));

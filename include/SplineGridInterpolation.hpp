@@ -1,5 +1,5 @@
-#ifndef NATURAL_CUBIC_SPLINE_GRID_INTERPOLATION_HPP
-#define NATURAL_CUBIC_SPLINE_GRID_INTERPOLATION_HPP
+#ifndef SPLINE_GRID_INTERPOLATION_HPP
+#define SPLINE_GRID_INTERPOLATION_HPP
 
 #include <algorithm>
 #include <array>
@@ -178,6 +178,12 @@ public:
     if (dataChanged)
       if (!initialize())
         return {};
+
+    if (input.size() != inputDim) {
+      std::cout << "SplineGridInterpolation: The provided input does not have "
+                   "the right number of dimensions.\n";
+      return {};
+    }
 
     bool isInside = true;
     for (SizeType i = 0; i < inputDim; ++i) {
