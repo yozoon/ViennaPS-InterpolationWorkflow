@@ -9,10 +9,8 @@ find_package(fmt REQUIRED)
 find_package(LAPACK REQUIRED)
 
 if (MSVC)
-    # warning level 4
     add_compile_options(/W4)
 else()
-    # lots of warnings
     add_compile_options(-Wall -Wextra -pedantic)
 endif()
 
@@ -24,12 +22,6 @@ set(WORKFLOW InterpolationWorkflow)
 add_executable(${WORKFLOW} src/${WORKFLOW}.cpp)
 target_include_directories(${WORKFLOW} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
 target_link_libraries(${WORKFLOW} PRIVATE ${VIENNAPS_LIBRARIES})
-
-# set(WORKFLOW_LIN InterpolationWorkflowLinear)
-# add_executable(${WORKFLOW_LIN} src/${WORKFLOW}.cpp)
-# target_include_directories(${WORKFLOW_LIN} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
-# target_link_libraries(${WORKFLOW_LIN} PRIVATE ${VIENNAPS_LIBRARIES})
-# target_compile_definitions(${WORKFLOW_LIN} PUBLIC LINEAR)
 
 set(CREATE_DATA CreateData)
 add_executable(${CREATE_DATA} src/${CREATE_DATA}.cpp)

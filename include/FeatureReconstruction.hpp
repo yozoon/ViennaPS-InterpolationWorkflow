@@ -41,7 +41,7 @@ public:
     // extracted features. Use this mesh to generate a new levelset, which
     // will be subtracted from the plane.
     {
-      NumericType depth = features.at(0);
+      NumericType depth = features[0];
 
       // Manually create a surface mesh based on the extracted features
       auto mesh = psSmartPointer<lsMesh<>>::New();
@@ -55,8 +55,8 @@ public:
         if constexpr (D == 3)
           point[2] = origin[2];
 
-        point[0] -= std::max(features.at(i) / 2, eps);
-        point[D - 1] -= depth * sampleLocations.at(i - 1);
+        point[0] -= std::max(features[i] / 2, eps);
+        point[D - 1] -= depth * sampleLocations[i];
 
         mesh->insertNextNode(point);
       }
@@ -89,8 +89,8 @@ public:
         if constexpr (D == 3)
           point[2] = origin[2];
 
-        point[0] += std::max(features.at(i) / 2, eps);
-        point[D - 1] -= depth * sampleLocations.at(i - 1);
+        point[0] += std::max(features[i] / 2, eps);
+        point[D - 1] -= depth * sampleLocations[i];
 
         mesh->insertNextNode(point);
       }

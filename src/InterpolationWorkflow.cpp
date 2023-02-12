@@ -115,8 +115,7 @@ int main(int argc, char *argv[]) {
 
     // Whether the provided file is one row per timestep or one row per
     // configuration (=consolidated).
-    bool consolidatedInput =
-        static_cast<int>(sampleLocations.size() + 1) != numFeatures;
+    bool consolidatedInput = numFeatures / sampleLocations.size() > 1;
 
     std::vector<NumericType> estimatedFeatures;
     if (!consolidatedInput) {
@@ -137,7 +136,7 @@ int main(int argc, char *argv[]) {
 
       std::tie(estimatedFeatures, std::ignore) = estimationOpt.value();
     } else {
-      std::cout << "Using Nearest Neighbors Interpolation (config) and Cubic "
+      std::cout << "Using Nearest Neighbors Interpolation (config)\nand Cubic "
                    "Spline Interpolation (time)\n";
       // Do nearest neighbors interpolation for the configuration inputs
       int numberOfNeighbors = 3;
@@ -158,7 +157,7 @@ int main(int argc, char *argv[]) {
 
       auto [nnFeatures, distance] = estimationOpt.value();
 
-      int stepSize = sampleLocations.size() + 2;
+      int stepSize = sampleLocations.size() + 1;
       int numTimesteps = nnFeatures.size() / stepSize;
 
       // Copy the kNN interpolated data into separate x and y value vectors.
@@ -184,18 +183,20 @@ int main(int argc, char *argv[]) {
     auto substrate = createEmptyLevelset<NumericType, D>(params);
     auto geometry = psSmartPointer<lsDomain<NumericType, D>>::New(substrate);
 
-    if (sampleLocations.size() + 1 == estimatedFeatures.size()) {
+    if (sampleLocations.size() == estimatedFeatures.size()) {
       FeatureReconstruction<NumericType, D>(geometry, origin, sampleLocations,
                                             estimatedFeatures)
           .apply();
     } else {
       std::cout << "Mismatch of feature dimensions!\n";
+      return EXIT_FAILURE;
     }
 
     interpolatedGeometry->insertNextLevelSet(substrate);
     interpolatedGeometry->insertNextLevelSet(geometry);
-    interpolatedGeometry->printSurface(consolidatedInput ? "interpolated_nn.vtp"
-                                                         : "interpolated.vtp");
+    interpolatedGeometry->printSurface(consolidatedInput
+                                           ? "IW_interpolated_nn_spline.vtp"
+                                           : "IW_interpolated_spline.vtp");
   }
 
   auto stop = Clock::now();
@@ -215,10 +216,10 @@ int main(int argc, char *argv[]) {
         params.taperAngle /* tapering angle */)
         .apply();
 
-    referenceGeometry->printSurface("initial.vtp");
+    referenceGeometry->printSurface("IW_initial.vtp");
 
     executeProcess<NumericType, D>(referenceGeometry, params);
-    referenceGeometry->printSurface("reference.vtp");
+    referenceGeometry->printSurface("IW_reference.vtp");
   }
   stop = Clock::now();
   auto simDuration = Duration(stop - start).count();

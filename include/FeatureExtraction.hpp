@@ -11,12 +11,14 @@
 
 template <typename NumericType, int D> class FeatureExtraction {
 public:
+  using ConstPtr = psSmartPointer<const std::vector<NumericType>>;
+
   FeatureExtraction()
-      : verticalSampleLocations(
+      : sampleLocations(
             distributeSampleLocations(numberOfSamples, -edgeAffinity)) {}
 
   FeatureExtraction(psSmartPointer<psDomain<NumericType, D>> passedDomain)
-      : domain(passedDomain), verticalSampleLocations(distributeSampleLocations(
+      : domain(passedDomain), sampleLocations(distributeSampleLocations(
                                   numberOfSamples, -edgeAffinity)) {}
 
   void setDomain(psSmartPointer<psDomain<NumericType, D>> passedDomain) {
@@ -26,39 +28,41 @@ public:
   void setNumberOfSamples(int passedNumberOfSamples) {
     assert(numberOfSamples > 1);
     numberOfSamples = passedNumberOfSamples;
-    verticalSampleLocations =
+    // The first sample location is negative - indicating that this is the
+    // height measurement
+    sampleLocations = {-1.};
+    // The remaining sample locations are distributed in the range 0 to 1.
+    auto sampleDistrinution =
         distributeSampleLocations(numberOfSamples - 1, -edgeAffinity);
+    std::copy(sampleDistrinution.begin(), sampleDistrinution.end(),
+              std::back_inserter(sampleLocations));
   }
 
   void setEdgeAffinity(NumericType passedEdgeAffinity) {
     edgeAffinity = passedEdgeAffinity;
   }
 
-  psSmartPointer<std::vector<NumericType>> getFeatures() {
-    return dimensions;
-  }
+  ConstPtr getFeatures() const { return ConstPtr::New(features); }
 
-  const std::vector<NumericType> &getSampleLocations() {
-    return verticalSampleLocations;
-  }
+  ConstPtr getSampleLocations() const { return ConstPtr::New(sampleLocations); }
 
   void apply() {
     if (!domain)
       return;
 
-    // Re-initialize the dimensions vector with a value of zero. The first
-    // element will be the depth.
-    dimensions = psSmartPointer<std::vector<NumericType>>::New(
-        verticalSampleLocations.size() + 1, 0.);
+    // Re-initialize the feature vector with a value of zero.
+    features.clear();
+    features.resize(sampleLocations.size(), 0.);
 
+    // Convert the geometry to a disk mesh and extract the nodes
     auto mesh = psSmartPointer<lsMesh<>>::New();
-
     lsToDiskMesh<NumericType, D>(domain->getLevelSets()->back(), mesh).apply();
-
     auto nodes = mesh->getNodes();
+
+    // Extract the depth of the trench
     auto [min, max] = getMinMax(nodes, 1 /* axis */);
     NumericType depth = max - min;
-    dimensions->at(0) = depth;
+    features[0] = depth;
 
     // Only use the vertical trench axis for the kDtree
     std::vector<std::vector<NumericType>> ys;
@@ -67,6 +71,8 @@ public:
         nodes.begin(), nodes.end(), std::back_inserter(ys),
         [=](auto &node) { return std::vector<NumericType>{node[D - 1]}; });
 
+    // Initialize a 1D KDTree (~ multiset data structure with convencience
+    // functions)
     psKDTree<NumericType> tree;
     tree.setPoints(ys);
     tree.build();
@@ -75,19 +81,24 @@ public:
     // given by depths
     int i = 1;
     const NumericType gridDelta = domain->getGrid().getGridDelta();
-    for (auto sl : verticalSampleLocations) {
+    for (auto sl : sampleLocations) {
+      if (sl < 0)
+        continue;
+
       std::vector<NumericType> loc = {max - depth * sl};
 
-      auto neighbors = tree.findNearestWithinRadius(loc, gridDelta / 2);
-      if (!neighbors) {
+      auto neighborsOpt = tree.findNearestWithinRadius(loc, gridDelta / 2);
+      if (!neighborsOpt) {
         ++i;
         continue;
       }
+      auto neighbors = neighborsOpt.value();
 
       // auto [minIt, maxIt] =
       //     std::minmax_element(neighbors->begin(), neighbors->end(),
       //                         [&](const auto &a, const auto &b) {
-      //                           return nodes[a.first][0] < nodes[b.first][0];
+      //                           return nodes[a.first][0] <
+      //                           nodes[b.first][0];
       //                         });
       // if (minIt == neighbors->end() || maxIt == neighbors->end()) {
       //   ++i;
@@ -103,7 +114,7 @@ public:
       // its vertical axis being the axis of symmetry int idxL = -1;
       int idxL = -1;
       int idxR = -1;
-      for (auto &nb : *neighbors) {
+      for (auto &nb : neighbors) {
         // if the point is on the left trench sidewall
         if (idxL < 0 && nodes[nb.first][0] < 0) {
           idxL = nb.first;
@@ -121,7 +132,7 @@ public:
 
       if (idxL >= 0 && idxR >= 0) {
         const auto d = std::abs(nodes[idxL][0]) + std::abs(nodes[idxR][0]);
-        dimensions->at(i) = d;
+        features[i] = d;
       }
 
       ++i;
@@ -148,6 +159,7 @@ private:
                    [](NumericType xi) { return (xi + 1) / 2; });
     if (alpha < 0) {
       std::reverse(x.begin(), x.end());
+
       return x;
     } else {
       return x;
@@ -167,11 +179,11 @@ private:
   }
 
   psSmartPointer<psDomain<NumericType, D>> domain = nullptr;
-  psSmartPointer<std::vector<NumericType>> dimensions = nullptr;
 
   int numberOfSamples = 10;
   NumericType edgeAffinity = 3.;
 
-  std::vector<NumericType> verticalSampleLocations;
+  std::vector<NumericType> features;
+  std::vector<NumericType> sampleLocations;
 };
 #endif
