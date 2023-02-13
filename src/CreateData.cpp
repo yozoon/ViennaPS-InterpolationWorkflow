@@ -8,6 +8,7 @@
 int main(int argc, const char *const *const) {
   using NumericType = double;
   static constexpr int D = 2;
+  static constexpr int numberOfSamples = 30;
 
   // Whether to concatenate data of different timesteps into one row, or record
   // it in separate rows
@@ -23,10 +24,6 @@ int main(int argc, const char *const *const) {
   std::vector<NumericType> stickingProbabilities = {1., 0.7, 0.4, 0.1};
   std::vector<NumericType> taperAngles = {-15., -10, -5., 0., 5., 10., 15.};
 
-  // The number of heights at which we are going to measure the diameter of the
-  // trench
-  static constexpr int numberOfSamples = 30;
-
   int consolidatedDataDimension =
       (numberOfSamples + 1) *
       (static_cast<int>(std::ceil(processDuration)) + 1);
@@ -39,7 +36,10 @@ int main(int argc, const char *const *const) {
   // Instantiate the featureExtraction
   auto featureExtraction =
       psSmartPointer<FeatureExtraction<NumericType, D>>::New();
-  featureExtraction->setNumberOfSamples(numberOfSamples);
+  featureExtraction->setNumberOfSamples(numberOfSamples,
+                                        false /*closed interval*/);
+  featureExtraction->setEdgeAffinity(3.0);
+  featureExtraction->initializeSampleLocations();
 
   // The locations at which the diameters are extracted (normalized to the
   // trench depth at each timestep)

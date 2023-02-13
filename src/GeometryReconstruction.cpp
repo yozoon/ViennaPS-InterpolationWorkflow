@@ -33,8 +33,8 @@ int main() {
   // Extract features from the geometry
   FeatureExtraction<NumericType, D> extraction;
   extraction.setDomain(geometry);
-  extraction.setNumberOfSamples(numberOfSamples);
-  extraction.setEdgeAffinity(4.);
+  extraction.setNumberOfSamples(numberOfSamples, false /* closed */);
+  extraction.setEdgeAffinity(2.);
   extraction.apply();
 
   auto sampleLocations = extraction.getSampleLocations();
