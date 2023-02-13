@@ -10,8 +10,6 @@
 #include <psDomain.hpp>
 #include <psKDTree.hpp>
 
-#define SYMMETRIC
-
 template <typename NumericType, int D> class FeatureExtraction {
 public:
   using ConstPtr = psSmartPointer<const std::vector<NumericType>>;
@@ -53,11 +51,7 @@ public:
 
     // Re-initialize the feature vector with a value of zero.
     features.clear();
-#ifdef SYMMETRIC
     features.resize(sampleLocations.size(), 0.);
-#else
-    features.resize(2 * sampleLocations.size() - 1, 0.);
-#endif
 
     // Convert the geometry to a disk mesh and extract the nodes
     auto mesh = psSmartPointer<lsMesh<>>::New();
@@ -69,13 +63,21 @@ public:
     NumericType depth = max - min;
     features[0] = depth;
 
-    // Only use the vertical trench axis for the kDtree
+    // Project all points onto the hyperplane spanned by all axis except the
+    // one of the direction of the trench diameter. (i.e. only the vertical axis
+    // in 2D and the symmetry plane spanned by the vertical axis and the
+    // extrusion axis in 3D).
     std::vector<std::vector<NumericType>> vertical;
     vertical.reserve(nodes.size());
-    std::transform(nodes.begin(), nodes.end(), std::back_inserter(vertical),
-                   [=](auto &node) {
-                     return std::vector<NumericType>{node[verticalDir]};
-                   });
+    std::transform(
+        nodes.begin(), nodes.end(), std::back_inserter(vertical),
+        [=](auto &node) {
+          if constexpr (D == 3) {
+            return std::vector<NumericType>{node[verticalDir], node[D - 2]};
+          } else {
+            return std::vector<NumericType>{node[verticalDir]};
+          }
+        });
 
     // Initialize a 1D KDTree (~= multiset data structure with convencience
     // functions)
@@ -86,9 +88,11 @@ public:
     // The extract the diameters along its depth at the relative coordinates
     // given by depths
     const NumericType gridDelta = domain->getGrid().getGridDelta();
-#ifdef SYMMETRIC
     for (unsigned i = 1; i < sampleLocations.size(); ++i) {
       std::vector<NumericType> loc = {max - depth * sampleLocations[i]};
+      if constexpr (D == 3) {
+        loc.push_back(origin[D - 2]);
+      }
 
       // Extraction that assumes that the trench is symmetric
       auto neighborsOpt = tree.findNearestWithinRadius(loc, gridDelta / 2);
@@ -126,47 +130,6 @@ public:
         features[i] = d;
       }
     }
-#else
-    for (unsigned i = 1; i < sampleLocations.size(); ++i) {
-      std::vector<NumericType> loc = {max - depth * sampleLocations[i]};
-
-      // Extraction that assumes that the trench is symmetric
-      auto neighborsOpt = tree.findNearestWithinRadius(loc, gridDelta / 2);
-      if (!neighborsOpt)
-        continue;
-
-      auto neighbors = neighborsOpt.value();
-
-      // Here we assume that the trench is centered at the origin and symmetric.
-      // with its vertical axis being the axis of symmetry int idxL = -1;
-      int idxL = -1;
-      int idxR = -1;
-      for (auto &nb : neighbors) {
-        // if the point is on the left trench sidewall
-        if (idxL < 0 &&
-            nodes[nb.first][horizontalDir] - origin[horizontalDir] < 0) {
-          idxL = nb.first;
-        }
-
-        // if the point is on the right trench sidewall
-        if (idxR < 0 &&
-            nodes[nb.first][horizontalDir] - origin[horizontalDir] >= 0) {
-          idxR = nb.first;
-        }
-
-        // if both indices were found
-        if (idxL >= 0 && idxR >= 0)
-          break;
-      }
-
-      if (idxL >= 0 && idxR >= 0) {
-        features[2 * i - 1] =
-            std::abs(nodes[idxL][horizontalDir] - origin[horizontalDir]);
-        features[2 * i] =
-            std::abs(nodes[idxR][horizontalDir] - origin[horizontalDir]);
-      }
-    }
-#endif
   }
 
   // Distribute n points in the range from 0 to 1 and place them closer to the
