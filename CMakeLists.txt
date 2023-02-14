@@ -40,5 +40,5 @@ target_include_directories(${SPLINE} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
 target_link_libraries(${SPLINE} PRIVATE ${VIENNAPS_LIBRARIES})
 
 configure_file(data/data.csv ${CMAKE_CURRENT_BINARY_DIR}/data.csv COPYONLY)
-configure_file(data/data_consol.csv ${CMAKE_CURRENT_BINARY_DIR}/data_consol.csv COPYONLY)
+configure_file(data/data_concat.csv ${CMAKE_CURRENT_BINARY_DIR}/data_concat.csv COPYONLY)
 configure_file(data/config.txt ${CMAKE_CURRENT_BINARY_DIR}/config.txt COPYONLY)

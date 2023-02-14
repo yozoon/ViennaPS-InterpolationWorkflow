@@ -14,11 +14,11 @@ int main() {
   using NumericType = double;
   static constexpr int D = 2;
 
-  static constexpr int numberOfSamples = 60;
+  static constexpr int numberOfSamples = 61;
 
   Parameters<NumericType> params;
   params.taperAngle = -5.;
-  params.processTime = 2.;
+  params.processTime = 4.;
   params.stickingProbability = .4;
 
   // Generate the initial trench geometry
@@ -36,19 +36,20 @@ int main() {
   // Extract features from the geometry
   FeatureExtraction<NumericType, D> extraction;
   extraction.setDomain(geometry);
-  extraction.setNumberOfSamples(numberOfSamples, false /* closed */);
-  extraction.setEdgeAffinity(3.);
+  extraction.setNumberOfSamples(numberOfSamples, false /* open */);
+  extraction.setEdgeAffinity(2.);
   extraction.setOrigin(std::array<NumericType, 3>{0., params.trenchHeight, 0.});
   extraction.apply();
 
   auto sampleLocations = extraction.getSampleLocations();
   auto features = extraction.getFeatures();
 
-  std::cout << features->size() << std::endl;
-  for (int i = 0; i < sampleLocations->size(); ++i) {
-    std::cout << i << ": " << std::setprecision(4) << sampleLocations->at(i)
-              << ", " << features->at(i) << '\n';
-  }
+  //   std::cout << "Number of features=" << features->size() << std::endl;
+  //   for (unsigned i = 0; i < sampleLocations->size(); ++i) {
+  //     std::cout << i << ": " << std::setprecision(4) <<
+  //     sampleLocations->at(i)
+  //               << ", " << features->at(i) << '\n';
+  //   }
 
   assert(sampleLocations->size() == features->size());
 

@@ -157,7 +157,7 @@ public:
     // The extract the diameters along its depth at the relative coordinates
     // given by depths
     for (unsigned i = 1; i < sampleLocations.size(); ++i) {
-      std::vector<NumericType> loc = {max - depth * sampleLocations[i]};
+      std::vector<NumericType> loc = {min + depth * sampleLocations[i]};
       if constexpr (D == 3) {
         loc.push_back(origin[D - 2]);
       }
@@ -171,18 +171,16 @@ public:
       if (neighbors.empty())
         continue;
 
-      NumericType minHorizontalDistance =
-          std::numeric_limits<NumericType>::max();
-      if (static_cast<int>(i) < (numberOfSamples - 1) / 2) { // Right sidewall
+      if (i < numSamplesRight + 1) { // Right sidewall
         int idx = -1;
         for (auto &nb : neighbors) {
           NumericType label = featureLabels[nb.first];
-          NumericType horizontalDistance =
-              std::abs(nodes[nb.first][horizontalDir] - origin[horizontalDir]);
-          if (label == FeatureLabelEnum::RIGHT_SIDEWALL &&
-              horizontalDistance < minHorizontalDistance) {
-            minHorizontalDistance = horizontalDistance;
+          // NumericType horizontalDistance =
+          //     std::abs(nodes[nb.first][horizontalDir] -
+          //     origin[horizontalDir]);
+          if (label == FeatureLabelEnum::RIGHT_SIDEWALL) {
             idx = nb.first;
+            break;
           }
         }
         if (idx >= 0)
@@ -191,16 +189,16 @@ public:
         int idx = -1;
         for (auto &nb : neighbors) {
           NumericType label = featureLabels[nb.first];
-          NumericType horizontalDistance =
-              std::abs(origin[horizontalDir] - nodes[nb.first][horizontalDir]);
-          if (label == FeatureLabelEnum::LEFT_SIDEWALL &&
-              horizontalDistance < minHorizontalDistance) {
-            minHorizontalDistance = horizontalDistance;
+          // NumericType horizontalDistance =
+          //     std::abs(origin[horizontalDir] -
+          //     nodes[nb.first][horizontalDir]);
+          if (label == FeatureLabelEnum::LEFT_SIDEWALL) {
             idx = nb.first;
+            break;
           }
         }
         if (idx >= 0)
-          features[i] = origin[horizontalDir] - nodes[idx][horizontalDir];
+          features[i] = nodes[idx][horizontalDir] - origin[horizontalDir];
       }
     }
   }
@@ -211,7 +209,7 @@ public:
   distributeSampleLocations(typename std::vector<NumericType>::iterator start,
                             typename std::vector<NumericType>::iterator end,
                             NumericType edgeAffinity = 0.0,
-                            bool closed = true) const {
+                            bool ascending = true, bool closed = true) const {
     auto n = std::distance(start, end);
     if (n < 1)
       return;
@@ -243,8 +241,13 @@ public:
     std::transform(start, end, start,
                    [=](NumericType xi) { return (xi / maxVal + 1.0) / 2.0; });
 
-    if (edgeAffinity < 0)
-      std::reverse(start, end);
+    if (ascending) {
+      if (edgeAffinity > 0)
+        std::transform(start, end, start, [](auto &v) { return 1.0 - v; });
+    } else {
+      if (edgeAffinity < 0)
+        std::transform(start, end, start, [](auto &v) { return 1.0 - v; });
+    }
   }
 
   std::tuple<NumericType, NumericType>
@@ -261,6 +264,7 @@ public:
   }
 
   void initializeSampleLocations() {
+    // Sample locations are in the range 0 (bottom) ... 1 (top)
     if (!sampleLocations.empty())
       return;
 
@@ -270,19 +274,22 @@ public:
     sampleLocations.resize(numberOfSamples, 0.0);
     sampleLocations[0] = -1.;
 
+    // Ensure that the number of samples of the right sidewall is greater than
+    // or equal to the number of samples of the left sidewall.
+    numSamplesRight =
+        static_cast<unsigned>(std::ceil(1.0 * (numberOfSamples - 1) / 2));
+
     // The remaining sample locations are distributed in the range 0 to 1.
-    // Left sidewall sample locations
+    // Left sidewall sample locations (top to bottom -> descending)
     distributeSampleLocations(
         std::next(sampleLocations.begin(), 1),
-        std::next(sampleLocations.begin(), (numberOfSamples - 1) / 2),
-        edgeAffinity, closed);
-    std::reverse(std::next(sampleLocations.begin(), 1),
-                 std::next(sampleLocations.begin(), (numberOfSamples - 1) / 2));
+        std::next(sampleLocations.begin(), numSamplesRight + 1), edgeAffinity,
+        /*descending*/ false, closed);
 
-    // Right sidewall sample locations
+    // Right sidewall sample locations (top to bottom -> descending)
     distributeSampleLocations(
-        std::next(sampleLocations.begin(), (numberOfSamples - 1) / 2),
-        sampleLocations.end(), edgeAffinity, closed);
+        std::next(sampleLocations.begin(), numSamplesRight + 1),
+        sampleLocations.end(), edgeAffinity, /*descending*/ false, closed);
   }
 
 private:
@@ -298,5 +305,6 @@ private:
 
   std::vector<NumericType> sampleLocations;
   std::vector<NumericType> features;
+  unsigned numSamplesRight;
 };
 #endif

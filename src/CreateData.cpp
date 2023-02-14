@@ -12,9 +12,9 @@ int main(int argc, const char *const *const) {
 
   // Whether to concatenate data of different timesteps into one row, or record
   // it in separate rows
-  bool consolidateData = false;
+  bool concatenateData = false;
   if (argc > 1)
-    consolidateData = true;
+    concatenateData = true;
 
   // How long to run the process and at which intervals to do the extraction
   static constexpr NumericType processDuration = 5.0;
@@ -24,33 +24,34 @@ int main(int argc, const char *const *const) {
   std::vector<NumericType> stickingProbabilities = {1., 0.7, 0.4, 0.1};
   std::vector<NumericType> taperAngles = {-15., -10, -5., 0., 5., 10., 15.};
 
-  int consolidatedDataDimension =
+  int concatenatedDataDimension =
       (numberOfSamples + 1) *
       (static_cast<int>(std::ceil(processDuration)) + 1);
 
   // The data we are going to store consists of stickingProbability,
   // taperAngle, time and the sampled geometry descriptors as provided by the
   // feature extraction.
-  int InputDimension = consolidateData ? 2 : 3;
+  int InputDimension = concatenateData ? 2 : 3;
 
   // Instantiate the featureExtraction
   auto featureExtraction =
       psSmartPointer<FeatureExtraction<NumericType, D>>::New();
   featureExtraction->setNumberOfSamples(numberOfSamples,
-                                        false /*closed interval*/);
-  featureExtraction->setEdgeAffinity(3.0);
+                                        false /* => open interval*/);
+  // Uniformly spaced sample points
+  featureExtraction->setEdgeAffinity(2.0);
   featureExtraction->initializeSampleLocations();
 
-  // The locations at which the diameters are extracted (normalized to the
-  // trench depth at each timestep)
+  // The locations at which the features are extracted (normalized to
+  // the trench depth at each timestep)
   auto sampleLocations = featureExtraction->getSampleLocations();
 
-  std::string filename = consolidateData ? "data_consol.csv" : "data.csv";
+  std::string filename = concatenateData ? "data_concat.csv" : "data.csv";
   auto writer = psSmartPointer<psCSVWriter<NumericType>>::New(filename);
 
   // Creation of a descriptive/ detailed header
   std::string header = "taperAngle,stickingProbability,";
-  if (consolidateData) {
+  if (concatenateData) {
     header += "{extractionStep,depth,diameters...}";
   } else {
     header += "extractionStep,depth";
@@ -108,9 +109,9 @@ int main(int argc, const char *const *const) {
       advectionCallback->setFeatureExtraction(featureExtraction);
 
       psSmartPointer<std::vector<NumericType>> dataPtr = nullptr;
-      if (consolidateData) {
+      if (concatenateData) {
         dataPtr = decltype(dataPtr)::New();
-        dataPtr->reserve(InputDimension + consolidatedDataDimension);
+        dataPtr->reserve(InputDimension + concatenatedDataDimension);
         dataPtr->push_back(params.taperAngle);
         dataPtr->push_back(params.stickingProbability);
         advectionCallback->setDataPtr(dataPtr);
@@ -128,7 +129,7 @@ int main(int argc, const char *const *const) {
 
       executeProcess(geometry, params, advectionCallback);
 
-      if (consolidateData) {
+      if (concatenateData) {
         if (dataPtr)
           writer->writeRow(*dataPtr);
       }

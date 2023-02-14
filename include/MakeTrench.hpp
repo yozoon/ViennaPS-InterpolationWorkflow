@@ -20,12 +20,12 @@ public:
   NumericType gridDelta = .25;
   NumericType xExtent = 20;
   NumericType yExtent = 14;
-  NumericType baseHeight = 0.;
-
   NumericType trenchWidth = 7;
+  NumericType trenchDepth = 17.5;
   NumericType leftTaperingAngle = 0;
   NumericType rightTaperingAngle = 0;
-  NumericType trenchDepth = 17.5;
+  NumericType baseHeight = 0.;
+
   bool periodicBoundary = false;
   bool makeMask = false;
 
