@@ -6,6 +6,7 @@
 #include "ChamferDistance.hpp"
 #include "FeatureExtraction.hpp"
 #include "FeatureReconstruction.hpp"
+#include "MakeTrench.hpp"
 #include "Parameters.hpp"
 #include "TrenchDeposition.hpp"
 
@@ -13,18 +14,20 @@ int main() {
   using NumericType = double;
   static constexpr int D = 2;
 
-  static constexpr int numberOfSamples = 30;
+  static constexpr int numberOfSamples = 60;
 
   Parameters<NumericType> params;
+  params.taperAngle = -5.;
+  params.processTime = 4.;
+  params.stickingProbability = .4;
 
   // Generate the initial trench geometry
   auto geometry = psSmartPointer<psDomain<NumericType, D>>::New();
-  psMakeTrench<NumericType, D>(
-      geometry, params.gridDelta /* grid delta */, params.xExtent /*x extent*/,
-      params.yExtent /*y extent*/, params.trenchWidth /*trench width*/,
-      params.trenchHeight /*trench height*/,
-      params.taperAngle /* tapering angle */)
+  MakeTrench<NumericType, D>(geometry, params.gridDelta, params.xExtent,
+                             params.yExtent, params.trenchWidth,
+                             params.trenchHeight, params.taperAngle, 0.)
       .apply();
+  geometry->printSurface("GR_initial.vtp");
 
   // Run a physical deposition simulation
   executeProcess<NumericType, D>(geometry, params);
@@ -34,11 +37,17 @@ int main() {
   FeatureExtraction<NumericType, D> extraction;
   extraction.setDomain(geometry);
   extraction.setNumberOfSamples(numberOfSamples, false /* closed */);
-  extraction.setEdgeAffinity(2.);
+  extraction.setEdgeAffinity(3.);
   extraction.apply();
 
   auto sampleLocations = extraction.getSampleLocations();
   auto features = extraction.getFeatures();
+
+  std::cout << features->size() << std::endl;
+  for (int i = 0; i < sampleLocations->size(); ++i) {
+    std::cout << i << ": " << std::setprecision(4) << sampleLocations->at(i)
+              << ", " << features->at(i) << '\n';
+  }
 
   assert(sampleLocations->size() == features->size());
 

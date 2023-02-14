@@ -16,6 +16,13 @@ template <typename NumericType, int D> class FeatureReconstruction {
   const std::vector<NumericType> &features;
   NumericType eps;
 
+  int verticalDir = D - 1;
+  int horizontalDir = 0;
+
+  psSmartPointer<lsMesh<>>
+  pointsToMesh(const std::vector<NumericType> &x,
+               const std::vector<NumericType> &y) const {}
+
 public:
   FeatureReconstruction(
       psSmartPointer<lsDomain<NumericType, D>> &passedLevelset,
@@ -31,11 +38,18 @@ public:
     // geometry later on
     {
       NumericType normal[D] = {0.};
-      normal[D - 1] = 1.;
+      normal[verticalDir] = 1.;
 
       auto plane = psSmartPointer<lsPlane<NumericType, D>>::New(origin, normal);
       lsMakeGeometry<NumericType, D>(levelset, plane).apply();
     }
+
+    if (features.size() != sampleLocations.size()) {
+      std::cout << "Not enough features provided for reconstruction!\n";
+      return;
+    }
+
+    // INFO: Mesh point numbering CW: solid is enclosed inside points
 
     // Now create a mesh that reconstructs the trench profile by using the
     // extracted features. Use this mesh to generate a new levelset, which
@@ -48,20 +62,10 @@ public:
 
       NumericType gridDelta = levelset->getGrid().getGridDelta();
 
-      for (unsigned i = 1; i < features.size(); ++i) {
-        std::array<NumericType, 3> point{0.};
-        point[0] = origin[0];
-        point[1] = origin[1];
-        if constexpr (D == 3)
-          point[2] = origin[2];
+      unsigned samplesPerSide = (sampleLocations.size() - 1) / 2;
+      std::cout << samplesPerSide << std::endl;
 
-        point[0] -= std::max(features[i] / 2, eps);
-        point[D - 1] -= depth * sampleLocations[i];
-
-        mesh->insertNextNode(point);
-      }
-
-      {
+      if (std::abs(features[1]) > eps) {
         // Add one point on top of the geometry, so that we avoid potential
         // sharp corners
         std::array<NumericType, 3> point{0.};
@@ -70,27 +74,54 @@ public:
         if constexpr (D == 3)
           point[2] = origin[2];
 
-        point[0] -= std::max(features.back() / 2, eps);
-        point[D - 1] += 2 * gridDelta;
-
-        mesh->insertNextNode(point);
-
-        // Now also do the same thing for the right side
-        point[0] = origin[0];
-        point[0] += std::max(features.back() / 2, eps);
+        point[horizontalDir] += features[1]; // std::max(features[2], eps);
+        point[verticalDir] += 2 * gridDelta;
 
         mesh->insertNextNode(point);
       }
 
-      for (unsigned i = features.size() - 1; i >= 1; --i) {
+      for (unsigned i = 1; i < samplesPerSide; ++i) {
         std::array<NumericType, 3> point{0.};
         point[0] = origin[0];
         point[1] = origin[1];
         if constexpr (D == 3)
           point[2] = origin[2];
 
-        point[0] += std::max(features[i] / 2, eps);
-        point[D - 1] -= depth * sampleLocations[i];
+        point[horizontalDir] += features[i]; // std::max(features[i], eps);
+        point[verticalDir] -= depth * sampleLocations[i];
+
+        mesh->insertNextNode(point);
+
+        if (features[i] == 0.0 && features[i + samplesPerSide] == 0.0) {
+          std::cout << "Pinchoff point detected\n";
+        }
+      }
+
+      for (unsigned i = samplesPerSide; i < sampleLocations.size(); ++i) {
+        std::array<NumericType, 3> point{0.};
+        point[0] = origin[0];
+        point[1] = origin[1];
+        if constexpr (D == 3)
+          point[2] = origin[2];
+
+        point[horizontalDir] -= features[i]; // std::max(features[i], eps);
+        point[verticalDir] -= depth * sampleLocations[i];
+
+        mesh->insertNextNode(point);
+      }
+
+      if (std::abs(features.back()) > eps) {
+        // Add one point on top of the geometry, so that we avoid potential
+        // sharp corners
+        std::array<NumericType, 3> point{0.};
+        point[0] = origin[0];
+        point[1] = origin[1];
+        if constexpr (D == 3)
+          point[2] = origin[2];
+
+        point[horizontalDir] -=
+            features.back(); // std::max(features.back(), eps);
+        point[verticalDir] += 2 * gridDelta;
 
         mesh->insertNextNode(point);
       }
@@ -101,7 +132,10 @@ public:
       mesh->lines.emplace_back(std::array<unsigned, 2>{
           static_cast<unsigned>(mesh->lines.size()), 0U});
 
+#ifndef NDEBUG
+      // Print the created hull mesh
       lsVTKWriter<NumericType>(mesh, "hullMesh.vtp").apply();
+#endif
 
       // Create the new levelset based on the mesh and substract it from the
       // plane
