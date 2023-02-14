@@ -14,10 +14,11 @@
 #include <psKDTree.hpp>
 
 template <typename NumericType, int D> class FeatureExtraction {
-  enum SideEnum : int {
-    NEUTRAL = 0,
-    LEFT = -1,
-    RIGHT = 1,
+  enum FeatureLabelEnum : unsigned {
+    NONE = 0,
+    LEFT_SIDEWALL = 1,
+    RIGHT_SIDEWALL = 2,
+    TRENCH_BOTTOM = 3,
   };
 
 public:
@@ -86,20 +87,26 @@ public:
 
     auto normals = *normalsPtr;
 
-    std::vector<NumericType> sides(nodes.size(), 0.);
+    std::vector<NumericType> featureLabels(nodes.size(), 0.);
     for (unsigned i = 0; i < normals.size(); ++i) {
       auto &normal = normals[i];
-      auto nx = normal[0];
+      auto nx = normal[horizontalDir];
       NumericType threshold = 0.2;
-      NumericType side = ((nx >= threshold)    ? SideEnum::LEFT
-                          : (nx <= -threshold) ? SideEnum::RIGHT
-                                               : SideEnum::NEUTRAL);
-      sides[i] = side;
+      NumericType label = FeatureLabelEnum::NONE;
+      if (nx >= threshold) {
+        label = FeatureLabelEnum::LEFT_SIDEWALL;
+      } else if (nx <= -threshold) {
+        label = FeatureLabelEnum::RIGHT_SIDEWALL;
+      } else if (nodes[i][verticalDir] < origin[verticalDir] - gridDelta) {
+        label = FeatureLabelEnum::TRENCH_BOTTOM;
+      }
+      featureLabels[i] = label;
     }
 
-    mesh->getPointData().insertNextScalarData(sides, "sides");
-
-    lsVTKWriter<NumericType>(mesh, "annotated.vtp").apply();
+#ifndef NDEBUG
+    mesh->getPointData().insertNextScalarData(featureLabels, "feature");
+    lsVTKWriter<NumericType>(mesh, "FeatureExtractionLabels.vtp").apply();
+#endif
 
     // Extract the depth of the trench
     auto [min, max] = getMinMax(nodes, verticalDir);
@@ -126,9 +133,9 @@ public:
     // features[1] = depthOffset;
 
     // Project all points onto the hyperplane spanned by all axis except the
-    // one of the direction of the trench diameter. (i.e. only the vertical axis
-    // in 2D and the symmetry plane spanned by the vertical axis and the
-    // extrusion axis in 3D).
+    // one of the direction of the trench diameter. (i.e. project on the
+    // vertical axis in 2D and in 3D project onto the symmetry plane spanned by
+    // the vertical axis and the extrusion axis).
     std::vector<std::vector<NumericType>> vertical;
     vertical.reserve(nodes.size());
     std::transform(
@@ -164,14 +171,18 @@ public:
       if (neighbors.empty())
         continue;
 
+      NumericType minHorizontalDistance =
+          std::numeric_limits<NumericType>::max();
       if (static_cast<int>(i) < (numberOfSamples - 1) / 2) { // Right sidewall
         int idx = -1;
-
         for (auto &nb : neighbors) {
-          NumericType side = sides[nb.first];
-          if (side == SideEnum::RIGHT) {
+          NumericType label = featureLabels[nb.first];
+          NumericType horizontalDistance =
+              std::abs(nodes[nb.first][horizontalDir] - origin[horizontalDir]);
+          if (label == FeatureLabelEnum::RIGHT_SIDEWALL &&
+              horizontalDistance < minHorizontalDistance) {
+            minHorizontalDistance = horizontalDistance;
             idx = nb.first;
-            break;
           }
         }
         if (idx >= 0)
@@ -179,10 +190,13 @@ public:
       } else { // Left sidewall
         int idx = -1;
         for (auto &nb : neighbors) {
-          NumericType side = sides[nb.first];
-          if (side == SideEnum::LEFT) {
+          NumericType label = featureLabels[nb.first];
+          NumericType horizontalDistance =
+              std::abs(origin[horizontalDir] - nodes[nb.first][horizontalDir]);
+          if (label == FeatureLabelEnum::LEFT_SIDEWALL &&
+              horizontalDistance < minHorizontalDistance) {
+            minHorizontalDistance = horizontalDistance;
             idx = nb.first;
-            break;
           }
         }
         if (idx >= 0)

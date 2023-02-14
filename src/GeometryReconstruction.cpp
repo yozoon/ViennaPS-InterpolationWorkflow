@@ -18,7 +18,7 @@ int main() {
 
   Parameters<NumericType> params;
   params.taperAngle = -5.;
-  params.processTime = 4.;
+  params.processTime = 2.;
   params.stickingProbability = .4;
 
   // Generate the initial trench geometry
@@ -38,6 +38,7 @@ int main() {
   extraction.setDomain(geometry);
   extraction.setNumberOfSamples(numberOfSamples, false /* closed */);
   extraction.setEdgeAffinity(3.);
+  extraction.setOrigin(std::array<NumericType, 3>{0., params.trenchHeight, 0.});
   extraction.apply();
 
   auto sampleLocations = extraction.getSampleLocations();
