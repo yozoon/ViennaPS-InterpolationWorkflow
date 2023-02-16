@@ -21,6 +21,48 @@ template <typename NumericType, int D> class FeatureExtraction {
     TRENCH_BOTTOM = 3,
   };
 
+  // void extractLeftSidewallFeatures(
+  //     NumericType baseHeight, NumericType trenchHeight,
+  //     const std::vector<std::array<NumericType, 3>> &points,
+  //     const std::vector<std::array<NumericType, 3>> &normals,
+  //     typename std::vector<NumericType>::iterator sampleLocationsStart,
+  //     typename std::vector<NumericType>::iterator sampleLocationsEnd,
+  //     typename std::vector<NumericType>::iterator featureStorageStart,
+  //     typename std::vector<NumericType>::iterator featureStorageEnd) {
+  //   unsigned n = std::distance(sampleLocationsStart, sampleLocationsEnd);
+  //   if (n != std::distance(featureStorageStart, featureStorageEnd)) {
+  //     std::cout << "Mismatch of input and output range\n";
+  //     return;
+  //   }
+  //   if (points.size() != normals.size()) {
+  //     std::cout << "Number of points does not match number of normals\n";
+  //     return;
+  //   }
+
+  //   // Copy left sidewall points into a separate vector and scale them so
+  //   that
+  //   // their vertical coordinate ranges from 0 to 1, just like the sample
+  //   // points.
+  //   std::vector<std::array<NumericType, 2>> featurePoints;
+  //   featurePoints.reserve(points.size());
+  //   for (unsigned i = 0; i < normals.size(); ++i) {
+  //     auto &normal = normals[i];
+  //     auto &point = points[i];
+
+  //     auto nx = normal[horizontalDir];
+  //     NumericType threshold = 0.1;
+  //     if (nx >= threshold) {
+  //       featurePoints.emplace_back((point[verticalDir] - baseHeight) /
+  //                                      trenchHeight,
+  //                                  point[horizontalDir]);
+  //     }
+  //   }
+
+  //   // Sort the left sidewall points from bottom to top
+  //   std::sort(featurePoints.begin(), featurePoints.end(),
+  //             [](auto &a, auto &b) { return b[0] < a[0]; });
+  // }
+
 public:
   using ConstPtr = psSmartPointer<const std::vector<NumericType>>;
   FeatureExtraction() {}
@@ -111,23 +153,6 @@ public:
     // Extract the depth of the trench
     auto [min, max] = getMinMax(nodes, verticalDir);
 
-    // // Determine the height of the pinchoff (if one occured)
-    // auto voidPoints = mesh->getPointData().getScalarData(
-    //     lsMarkVoidPoints<NumericType, D>::voidPointLabel);
-    // bool isClosed = std::any_of(voidPoints->begin(), voidPoints->end(),
-    //                             [](int p) { return p == 1; });
-    // NumericType depthOffset = 0.;
-    // if (isClosed) {
-    //   NumericType pinchoffHeight = min;
-    //   for (unsigned i = 0; i < nodes.size(); ++i) {
-    //     if (voidPoints->at(i) != 0 && nodes[i][verticalDir] > pinchoffHeight)
-    //       pinchoffHeight = nodes[i][verticalDir];
-    //   }
-    //   depthOffset = max - pinchoffHeight;
-    //   // max = pinchoffHeight;
-    //   std::cout << "Pinchoff at: " << pinchoffHeight << '\n';
-    // }
-
     NumericType depth = max - min;
     features[0] = depth;
     // features[1] = depthOffset;
@@ -157,7 +182,8 @@ public:
     // The extract the diameters along its depth at the relative coordinates
     // given by depths
     for (unsigned i = 1; i < sampleLocations.size(); ++i) {
-      std::vector<NumericType> loc = {min + depth * sampleLocations[i]};
+      std::vector<NumericType> loc = {min + gridDelta / 2 +
+                                      (depth - gridDelta) * sampleLocations[i]};
       if constexpr (D == 3) {
         loc.push_back(origin[D - 2]);
       }
@@ -178,12 +204,12 @@ public:
         matchLabel = FeatureLabelEnum::LEFT_SIDEWALL;
       }
 
-      int lowerIdx = -1;
-      NumericType lowerDistance = std::numeric_limits<NumericType>::max();
-      NumericType lowerWidth = 0.;
       int upperIdx = -1;
+      int lowerIdx = -1;
       NumericType upperDistance = std::numeric_limits<NumericType>::max();
+      NumericType lowerDistance = std::numeric_limits<NumericType>::max();
       NumericType upperWidth = 0.;
+      NumericType lowerWidth = 0.;
       for (auto &nb : neighbors) {
         NumericType label = featureLabels[nb.first];
         NumericType nodeZ = nodes[nb.first][verticalDir];
@@ -202,10 +228,18 @@ public:
         if (upperIdx != -1 && lowerIdx != -1)
           break;
       }
-      // If there is a point at exactly the sample height
-      if (upperIdx != 0 && upperDistance == 0.0) {
+
+      if (upperIdx != 0 && upperDistance < 1e-4) {
+        // If the vertical position of the upper point coincides with the sample
+        // position up to a certain epsilon, use its width.
         features[i] = upperWidth;
+      } else if (lowerIdx != 0 && lowerDistance < 1e-4) {
+        // If the vertical position of the lower point coincides with the sample
+        // position up to a certain epsilon, use its width.
+        features[i] = lowerWidth;
       } else if (upperIdx != -1 && lowerIdx != -1) {
+        // Otherwise linearly interpolate between the two widths based on the
+        // offset to to sample position.
         NumericType totalDistance = lowerDistance + upperDistance;
         features[i] =
             (lowerDistance * upperWidth + upperDistance * lowerWidth) /
@@ -214,8 +248,9 @@ public:
     }
   }
 
-  // Distribute n points in the range from 0 to 1 and place them closer to the
-  // edges or closer to the center based on the edgeAffinity parameter.
+  // Populate the given range with a sequence of values in the range from 0
+  // to 1 and place them closer to the edges or closer to the center based on
+  // the edgeAffinity parameter.
   void
   distributeSampleLocations(typename std::vector<NumericType>::iterator start,
                             typename std::vector<NumericType>::iterator end,
@@ -256,7 +291,7 @@ public:
       if (edgeAffinity > 0)
         std::transform(start, end, start, [](auto &v) { return 1.0 - v; });
     } else {
-      if (edgeAffinity < 0)
+      if (edgeAffinity <= 0)
         std::transform(start, end, start, [](auto &v) { return 1.0 - v; });
     }
   }

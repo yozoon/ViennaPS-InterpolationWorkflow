@@ -44,11 +44,13 @@ int main() {
   auto sampleLocations = extraction.getSampleLocations();
   auto features = extraction.getFeatures();
 
+#ifndef NDEBUG
   std::cout << "Number of features=" << features->size() << std::endl;
   for (unsigned i = 0; i < sampleLocations->size(); ++i) {
     std::cout << i << ": " << std::setprecision(4) << sampleLocations->at(i)
               << ", " << features->at(i) << '\n';
   }
+#endif
 
   assert(sampleLocations->size() == features->size());
 

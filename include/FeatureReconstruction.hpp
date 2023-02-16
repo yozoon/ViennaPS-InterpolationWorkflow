@@ -86,15 +86,13 @@ public:
 
         unsigned nextJ = j;
         for (unsigned i = 1 + j; i < numSamplesRight + 1; ++i) {
-          // std::cout << i << ": "
-          //           << std::abs(features[i] - features[i + numSamplesRight])
-          //           << '\n';
-
           nextJ = i - 1;
 
           if (std::abs(features[i] - features[i + numSamplesRight]) <
               gridDelta / 2) {
-            // std::cout << "Pinchoff point detected\n";
+#ifndef NDEBUG
+            std::cout << "Pinchoff point detected!\n";
+#endif
             break;
           }
 
@@ -110,7 +108,7 @@ public:
           mesh->insertNextNode(point);
         }
 
-        for (unsigned i = numSamplesRight + nextJ; i > numSamplesRight + j;
+        for (unsigned i = numSamplesRight + nextJ + 1; i > numSamplesRight + j;
              --i) {
           std::array<NumericType, 3> point{0.};
           point[0] = origin[0];
@@ -144,6 +142,9 @@ public:
         // If there are not enough points for a triangle skip the boolean
         // operation.
         if (mesh->nodes.size() < 3) {
+#ifndef NDEBUG
+          std::cout << "Mesh is just a line. Skipping.\n";
+#endif
           continue;
         }
 
