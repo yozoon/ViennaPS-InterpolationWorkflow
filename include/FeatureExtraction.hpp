@@ -91,7 +91,7 @@ public:
     for (unsigned i = 0; i < normals.size(); ++i) {
       auto &normal = normals[i];
       auto nx = normal[horizontalDir];
-      NumericType threshold = 0.2;
+      NumericType threshold = 0.1;
       NumericType label = FeatureLabelEnum::NONE;
       if (nx >= threshold) {
         label = FeatureLabelEnum::LEFT_SIDEWALL;
@@ -162,7 +162,7 @@ public:
         loc.push_back(origin[D - 2]);
       }
 
-      auto neighborsOpt = tree.findNearestWithinRadius(loc, gridDelta / 2);
+      auto neighborsOpt = tree.findNearestWithinRadius(loc, gridDelta);
       if (!neighborsOpt)
         continue;
 
@@ -171,34 +171,45 @@ public:
       if (neighbors.empty())
         continue;
 
-      if (i < numSamplesRight + 1) { // Right sidewall
-        int idx = -1;
-        for (auto &nb : neighbors) {
-          NumericType label = featureLabels[nb.first];
-          // NumericType horizontalDistance =
-          //     std::abs(nodes[nb.first][horizontalDir] -
-          //     origin[horizontalDir]);
-          if (label == FeatureLabelEnum::RIGHT_SIDEWALL) {
-            idx = nb.first;
-            break;
+      FeatureLabelEnum matchLabel;
+      if (i < numSamplesRight + 1) {
+        matchLabel = FeatureLabelEnum::RIGHT_SIDEWALL;
+      } else {
+        matchLabel = FeatureLabelEnum::LEFT_SIDEWALL;
+      }
+
+      int lowerIdx = -1;
+      NumericType lowerDistance = std::numeric_limits<NumericType>::max();
+      NumericType lowerWidth = 0.;
+      int upperIdx = -1;
+      NumericType upperDistance = std::numeric_limits<NumericType>::max();
+      NumericType upperWidth = 0.;
+      for (auto &nb : neighbors) {
+        NumericType label = featureLabels[nb.first];
+        NumericType nodeZ = nodes[nb.first][verticalDir];
+        NumericType nodeX = nodes[nb.first][horizontalDir];
+        if (label == matchLabel) {
+          if (lowerIdx == -1 && nodeZ < loc[0]) {
+            lowerIdx = nb.first;
+            lowerDistance = loc[0] - nodeZ;
+            lowerWidth = nodeX - origin[horizontalDir];
+          } else if (upperIdx == -1 && nodeZ >= loc[0]) {
+            upperIdx = nb.first;
+            upperDistance = nodeZ - loc[0];
+            upperWidth = nodeX - origin[horizontalDir];
           }
         }
-        if (idx >= 0)
-          features[i] = nodes[idx][horizontalDir] - origin[horizontalDir];
-      } else { // Left sidewall
-        int idx = -1;
-        for (auto &nb : neighbors) {
-          NumericType label = featureLabels[nb.first];
-          // NumericType horizontalDistance =
-          //     std::abs(origin[horizontalDir] -
-          //     nodes[nb.first][horizontalDir]);
-          if (label == FeatureLabelEnum::LEFT_SIDEWALL) {
-            idx = nb.first;
-            break;
-          }
-        }
-        if (idx >= 0)
-          features[i] = nodes[idx][horizontalDir] - origin[horizontalDir];
+        if (upperIdx != -1 && lowerIdx != -1)
+          break;
+      }
+      // If there is a point at exactly the sample height
+      if (upperIdx != 0 && upperDistance == 0.0) {
+        features[i] = upperWidth;
+      } else if (upperIdx != -1 && lowerIdx != -1) {
+        NumericType totalDistance = lowerDistance + upperDistance;
+        features[i] =
+            (lowerDistance * upperWidth + upperDistance * lowerWidth) /
+            totalDistance;
       }
     }
   }

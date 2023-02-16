@@ -14,7 +14,7 @@ int main() {
   using NumericType = double;
   static constexpr int D = 2;
 
-  static constexpr int numberOfSamples = 61;
+  static constexpr int numberOfSamples = 101;
 
   Parameters<NumericType> params;
   params.taperAngle = -5.;
@@ -37,19 +37,18 @@ int main() {
   FeatureExtraction<NumericType, D> extraction;
   extraction.setDomain(geometry);
   extraction.setNumberOfSamples(numberOfSamples, false /* open */);
-  extraction.setEdgeAffinity(2.);
+  extraction.setEdgeAffinity(0.);
   extraction.setOrigin(std::array<NumericType, 3>{0., params.trenchHeight, 0.});
   extraction.apply();
 
   auto sampleLocations = extraction.getSampleLocations();
   auto features = extraction.getFeatures();
 
-  //   std::cout << "Number of features=" << features->size() << std::endl;
-  //   for (unsigned i = 0; i < sampleLocations->size(); ++i) {
-  //     std::cout << i << ": " << std::setprecision(4) <<
-  //     sampleLocations->at(i)
-  //               << ", " << features->at(i) << '\n';
-  //   }
+  std::cout << "Number of features=" << features->size() << std::endl;
+  for (unsigned i = 0; i < sampleLocations->size(); ++i) {
+    std::cout << i << ": " << std::setprecision(4) << sampleLocations->at(i)
+              << ", " << features->at(i) << '\n';
+  }
 
   assert(sampleLocations->size() == features->size());
 
