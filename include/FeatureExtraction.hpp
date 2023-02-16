@@ -21,48 +21,6 @@ template <typename NumericType, int D> class FeatureExtraction {
     TRENCH_BOTTOM = 3,
   };
 
-  // void extractLeftSidewallFeatures(
-  //     NumericType baseHeight, NumericType trenchHeight,
-  //     const std::vector<std::array<NumericType, 3>> &points,
-  //     const std::vector<std::array<NumericType, 3>> &normals,
-  //     typename std::vector<NumericType>::iterator sampleLocationsStart,
-  //     typename std::vector<NumericType>::iterator sampleLocationsEnd,
-  //     typename std::vector<NumericType>::iterator featureStorageStart,
-  //     typename std::vector<NumericType>::iterator featureStorageEnd) {
-  //   unsigned n = std::distance(sampleLocationsStart, sampleLocationsEnd);
-  //   if (n != std::distance(featureStorageStart, featureStorageEnd)) {
-  //     std::cout << "Mismatch of input and output range\n";
-  //     return;
-  //   }
-  //   if (points.size() != normals.size()) {
-  //     std::cout << "Number of points does not match number of normals\n";
-  //     return;
-  //   }
-
-  //   // Copy left sidewall points into a separate vector and scale them so
-  //   that
-  //   // their vertical coordinate ranges from 0 to 1, just like the sample
-  //   // points.
-  //   std::vector<std::array<NumericType, 2>> featurePoints;
-  //   featurePoints.reserve(points.size());
-  //   for (unsigned i = 0; i < normals.size(); ++i) {
-  //     auto &normal = normals[i];
-  //     auto &point = points[i];
-
-  //     auto nx = normal[horizontalDir];
-  //     NumericType threshold = 0.1;
-  //     if (nx >= threshold) {
-  //       featurePoints.emplace_back((point[verticalDir] - baseHeight) /
-  //                                      trenchHeight,
-  //                                  point[horizontalDir]);
-  //     }
-  //   }
-
-  //   // Sort the left sidewall points from bottom to top
-  //   std::sort(featurePoints.begin(), featurePoints.end(),
-  //             [](auto &a, auto &b) { return b[0] < a[0]; });
-  // }
-
 public:
   using ConstPtr = psSmartPointer<const std::vector<NumericType>>;
   FeatureExtraction() {}
@@ -107,13 +65,6 @@ public:
     features.resize(sampleLocations.size(), 0.);
 
     auto &levelset = domain->getLevelSets()->back();
-
-    // lsCalculateNormalVectors<NumericType, D>(levelset).apply();
-
-    // Check if the trench is pinched off
-    lsMarkVoidPoints<NumericType, D>(levelset).apply();
-
-    lsExpand<NumericType, D>(levelset, 4).apply();
 
     // Convert the geometry to a surface mesh and extract the nodes as well as
     // the void points

@@ -8,7 +8,7 @@
 int main(int argc, const char *const *const) {
   using NumericType = double;
   static constexpr int D = 2;
-  static constexpr int numberOfSamples = 60;
+  static constexpr int numberOfSamples = 61;
 
   // Whether to concatenate data of different timesteps into one row, or record
   // it in separate rows
@@ -39,7 +39,7 @@ int main(int argc, const char *const *const) {
   featureExtraction->setNumberOfSamples(numberOfSamples,
                                         false /* => open interval*/);
   // Uniformly spaced sample points
-  featureExtraction->setEdgeAffinity(2.0);
+  featureExtraction->setEdgeAffinity(0.0);
   featureExtraction->initializeSampleLocations();
 
   // The locations at which the features are extracted (normalized to

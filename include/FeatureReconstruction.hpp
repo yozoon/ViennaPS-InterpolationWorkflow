@@ -51,21 +51,20 @@ public:
     // extracted features. Use this mesh to generate a new levelset, which
     // will be subtracted from the plane.
     {
+      unsigned numSamplesRight = static_cast<unsigned>(
+          std::ceil(1.0 * (sampleLocations.size() - 1) / 2));
+      unsigned numSamplesLeft = sampleLocations.size() - 1 - numSamplesRight;
+
       NumericType depth = features[0];
 
       NumericType gridDelta = levelset->getGrid().getGridDelta();
-
-      auto numSamplesRight = static_cast<unsigned>(
-          std::ceil(1.0 * (sampleLocations.size() - 1) / 2));
-
-      // std::cout << numSamplesRight << std::endl;
 
 #ifndef NDEBUG
       int meshCount = 0;
 #endif
 
       unsigned j = 0;
-      while (j < numSamplesRight) {
+      while (j < std::min(numSamplesRight, numSamplesLeft)) {
         // Manually create a surface mesh based on the extracted features
         auto mesh = psSmartPointer<lsMesh<>>::New();
 
@@ -88,7 +87,9 @@ public:
         for (unsigned i = 1 + j; i < numSamplesRight + 1; ++i) {
           nextJ = i - 1;
 
-          if (std::abs(features[i] - features[i + numSamplesRight]) <
+          if (features[i] -
+                  features[std::min(static_cast<unsigned>(features.size()) - 1,
+                                    numSamplesRight + i)] <
               gridDelta / 2) {
 #ifndef NDEBUG
             std::cout << "Pinchoff point detected!\n";
@@ -108,8 +109,9 @@ public:
           mesh->insertNextNode(point);
         }
 
-        for (unsigned i = numSamplesRight + nextJ + 1; i > numSamplesRight + j;
-             --i) {
+        for (unsigned i = std::min(static_cast<unsigned>(features.size()) - 1,
+                                   numSamplesRight + nextJ + 1);
+             i > numSamplesRight + j; --i) {
           std::array<NumericType, 3> point{0.};
           point[0] = origin[0];
           point[1] = origin[1];
@@ -175,6 +177,7 @@ public:
             .apply();
       }
     }
+    //
   }
 };
 #endif

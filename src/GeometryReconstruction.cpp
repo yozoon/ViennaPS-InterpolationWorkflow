@@ -37,7 +37,7 @@ int main() {
   FeatureExtraction<NumericType, D> extraction;
   extraction.setDomain(geometry);
   extraction.setNumberOfSamples(numberOfSamples, false /* open */);
-  extraction.setEdgeAffinity(0.);
+  extraction.setEdgeAffinity(0.0);
   extraction.setOrigin(std::array<NumericType, 3>{0., params.trenchHeight, 0.});
   extraction.apply();
 
