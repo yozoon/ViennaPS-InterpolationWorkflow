@@ -8,6 +8,14 @@ find_package(ViennaPS REQUIRED)
 find_package(fmt REQUIRED) 
 find_package(LAPACK REQUIRED)
 
+# Get the pre-c++20 span implementation library
+include(FetchContent)
+FetchContent_Declare(
+  spanlite
+  GIT_REPOSITORY https://github.com/martinmoene/span-lite.git
+)
+FetchContent_MakeAvailable(spanlite)
+
 if (MSVC)
     add_compile_options(/W4)
 else()
@@ -15,6 +23,7 @@ else()
 endif()
 
 include_directories(include)
+include_directories(${spanlite_SOURCE_DIR}/include/nonstd)
 
 list(APPEND VIENNAPS_LIBRARIES fmt::fmt ${LAPACK_LIBRARIES})
 

@@ -8,6 +8,8 @@
 #include <lsMesh.hpp>
 #include <lsVTKWriter.hpp>
 
+#include "span.hpp"
+
 template <typename NumericType, int D> class FeatureReconstruction {
 
   psSmartPointer<lsDomain<NumericType, D>> &levelset;
@@ -51,13 +53,26 @@ public:
     // extracted features. Use this mesh to generate a new levelset, which
     // will be subtracted from the plane.
     {
+      NumericType gridDelta = levelset->getGrid().getGridDelta();
+
       unsigned numSamplesRight = static_cast<unsigned>(
           std::ceil(1.0 * (sampleLocations.size() - 1) / 2));
       unsigned numSamplesLeft = sampleLocations.size() - 1 - numSamplesRight;
 
-      NumericType depth = features[0];
+      NumericType depth = features.front();
 
-      NumericType gridDelta = levelset->getGrid().getGridDelta();
+      const auto rightFeatures =
+          nonstd::span(std::next(features.begin(), 1),
+                       std::next(features.begin(), numSamplesRight + 1));
+      const auto rightLocations =
+          nonstd::span(std::next(sampleLocations.begin(), 1),
+                       std::next(sampleLocations.begin(), numSamplesRight + 1));
+
+      const auto leftFeatures = nonstd::span(
+          std::next(features.begin(), numSamplesLeft + 1), features.end());
+      const auto leftLocations =
+          nonstd::span(std::next(sampleLocations.begin(), numSamplesLeft + 1),
+                       sampleLocations.end());
 
 #ifndef NDEBUG
       int meshCount = 0;
@@ -72,24 +87,19 @@ public:
           // Add one point on top of the geometry, so that we avoid potential
           // sharp corners
           std::array<NumericType, 3> point{0.};
-          point[0] = origin[0];
-          point[1] = origin[1];
-          if constexpr (D == 3)
-            point[2] = origin[2];
+          std::copy(std::begin(origin), std::end(origin), point.begin());
 
-          point[horizontalDir] += features[1];
+          point[horizontalDir] += rightFeatures.front();
           point[verticalDir] += 2 * gridDelta;
 
           mesh->insertNextNode(point);
         }
 
         unsigned nextJ = j;
-        for (unsigned i = 1 + j; i < numSamplesRight + 1; ++i) {
-          nextJ = i - 1;
+        for (unsigned i = nextJ; i < rightFeatures.size(); ++i) {
+          nextJ = i;
 
-          if (features[i] -
-                  features[std::min(static_cast<unsigned>(features.size()) - 1,
-                                    numSamplesRight + i)] <
+          if (rightFeatures[i] - leftFeatures[std::min(numSamplesLeft - 1, i)] <
               gridDelta / 2) {
 #ifndef NDEBUG
             std::cout << "Pinchoff point detected!\n";
@@ -98,28 +108,20 @@ public:
           }
 
           std::array<NumericType, 3> point{0.};
-          point[0] = origin[0];
-          point[1] = origin[1];
-          if constexpr (D == 3)
-            point[2] = origin[2];
+          std::copy(std::begin(origin), std::end(origin), point.begin());
 
-          point[horizontalDir] += features[i];
-          point[verticalDir] += depth * (sampleLocations[i] - 1.0);
+          point[horizontalDir] += rightFeatures[i];
+          point[verticalDir] += depth * (rightLocations[i] - 1.0);
 
           mesh->insertNextNode(point);
         }
 
-        for (unsigned i = std::min(static_cast<unsigned>(features.size()) - 1,
-                                   numSamplesRight + nextJ + 1);
-             i > numSamplesRight + j; --i) {
+        for (int i = std::min(numSamplesLeft - 1, nextJ); i > j; --i) {
           std::array<NumericType, 3> point{0.};
-          point[0] = origin[0];
-          point[1] = origin[1];
-          if constexpr (D == 3)
-            point[2] = origin[2];
+          std::copy(std::begin(origin), std::end(origin), point.begin());
 
-          point[horizontalDir] += features[i];
-          point[verticalDir] += depth * (sampleLocations[i] - 1.0);
+          point[horizontalDir] += leftFeatures[i];
+          point[verticalDir] += depth * (leftLocations[i] - 1.0);
 
           mesh->insertNextNode(point);
         }
@@ -128,12 +130,9 @@ public:
           // Add one point on top of the geometry, so that we avoid potential
           // sharp corners
           std::array<NumericType, 3> point{0.};
-          point[0] = origin[0];
-          point[1] = origin[1];
-          if constexpr (D == 3)
-            point[2] = origin[2];
+          std::copy(std::begin(origin), std::end(origin), point.begin());
 
-          point[horizontalDir] += features[numSamplesRight + 1];
+          point[horizontalDir] += leftFeatures.back();
           point[verticalDir] += 2 * gridDelta;
 
           mesh->insertNextNode(point);
