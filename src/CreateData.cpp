@@ -8,7 +8,7 @@
 int main(int argc, const char *const *const) {
   using NumericType = double;
   static constexpr int D = 2;
-  static constexpr int numberOfSamples = 61;
+  static constexpr int numberOfSamples = 101;
 
   // Whether to concatenate data of different timesteps into one row, or record
   // it in separate rows

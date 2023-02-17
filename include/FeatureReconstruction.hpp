@@ -8,6 +8,8 @@
 #include <lsMesh.hpp>
 #include <lsVTKWriter.hpp>
 
+#include <psSmartPointer.hpp>
+
 #include "span.hpp"
 
 template <typename NumericType, int D> class FeatureReconstruction {
@@ -116,7 +118,8 @@ public:
           mesh->insertNextNode(point);
         }
 
-        for (int i = std::min(numSamplesLeft - 1, nextJ); i > j; --i) {
+        for (int i = std::min(numSamplesLeft - 1, nextJ);
+             i > static_cast<int>(j); --i) {
           std::array<NumericType, 3> point{0.};
           std::copy(std::begin(origin), std::end(origin), point.begin());
 
