@@ -102,7 +102,7 @@ public:
           nextJ = i;
 
           if (rightFeatures[i] - leftFeatures[std::min(numSamplesLeft - 1, i)] <
-              gridDelta / 2) {
+              gridDelta / 10) {
 #ifndef NDEBUG
             std::cout << "Pinchoff point detected!\n";
 #endif

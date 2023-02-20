@@ -25,7 +25,7 @@ endif()
 include_directories(include)
 include_directories(${spanlite_SOURCE_DIR}/include/nonstd)
 
-list(APPEND VIENNAPS_LIBRARIES fmt::fmt ${LAPACK_LIBRARIES})
+list(APPEND VIENNAPS_LIBRARIES ${LAPACK_LIBRARIES})
 
 set(WORKFLOW InterpolationWorkflow)
 add_executable(${WORKFLOW} src/${WORKFLOW}.cpp)
@@ -38,12 +38,14 @@ add_executable(${RECONSTRUCT} src/${RECONSTRUCT}.cpp)
 target_include_directories(${RECONSTRUCT} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
 target_link_libraries(${RECONSTRUCT} PRIVATE ${VIENNAPS_LIBRARIES})
 
+set(CREATE_DATA CreateData)
+add_executable(${CREATE_DATA} src/${CREATE_DATA}.cpp)
+target_include_directories(${CREATE_DATA} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
+target_link_libraries(${CREATE_DATA} PRIVATE ${VIENNAPS_LIBRARIES})
+
 if(fmt_FOUND)
-  set(CREATE_DATA CreateData)
-  add_executable(${CREATE_DATA} src/${CREATE_DATA}.cpp)
-  target_include_directories(${CREATE_DATA} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
-  target_link_libraries(${CREATE_DATA} PRIVATE ${VIENNAPS_LIBRARIES})
- 
+  list(APPEND VIENNAPS_LIBRARIES fmt::fmt)
+
   set(SPLINE TestSpline)
   add_executable(${SPLINE} src/${SPLINE}.cpp)
   target_include_directories(${SPLINE} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
