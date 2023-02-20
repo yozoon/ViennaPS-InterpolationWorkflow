@@ -139,7 +139,6 @@ public:
 
 private:
   void initialize() {
-
     // RHS matrix (Column major layout!)
     auto B = std::make_unique<NumericType[]>(outputDimension * N);
 

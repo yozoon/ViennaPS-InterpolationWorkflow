@@ -5,8 +5,8 @@ project("InterpolationWorkflow")
 set(VIENNAPS_VERBOSE OFF)
 
 find_package(ViennaPS REQUIRED)
-find_package(fmt REQUIRED) 
 find_package(LAPACK REQUIRED)
+find_package(fmt) 
 
 # Get the pre-c++20 span implementation library
 include(FetchContent)
@@ -32,21 +32,23 @@ add_executable(${WORKFLOW} src/${WORKFLOW}.cpp)
 target_include_directories(${WORKFLOW} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
 target_link_libraries(${WORKFLOW} PRIVATE ${VIENNAPS_LIBRARIES})
 
-set(CREATE_DATA CreateData)
-add_executable(${CREATE_DATA} src/${CREATE_DATA}.cpp)
-target_include_directories(${CREATE_DATA} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
-target_link_libraries(${CREATE_DATA} PRIVATE ${VIENNAPS_LIBRARIES})
 
 set(RECONSTRUCT GeometryReconstruction)
 add_executable(${RECONSTRUCT} src/${RECONSTRUCT}.cpp)
 target_include_directories(${RECONSTRUCT} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
 target_link_libraries(${RECONSTRUCT} PRIVATE ${VIENNAPS_LIBRARIES})
 
-
-set(SPLINE TestSpline)
-add_executable(${SPLINE} src/${SPLINE}.cpp)
-target_include_directories(${SPLINE} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
-target_link_libraries(${SPLINE} PRIVATE ${VIENNAPS_LIBRARIES})
+if(fmt_FOUND)
+  set(CREATE_DATA CreateData)
+  add_executable(${CREATE_DATA} src/${CREATE_DATA}.cpp)
+  target_include_directories(${CREATE_DATA} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
+  target_link_libraries(${CREATE_DATA} PRIVATE ${VIENNAPS_LIBRARIES})
+ 
+  set(SPLINE TestSpline)
+  add_executable(${SPLINE} src/${SPLINE}.cpp)
+  target_include_directories(${SPLINE} PUBLIC ${VIENNAPS_INCLUDE_DIRS})
+  target_link_libraries(${SPLINE} PRIVATE ${VIENNAPS_LIBRARIES})
+endif()
 
 configure_file(data/data.csv ${CMAKE_CURRENT_BINARY_DIR}/data.csv COPYONLY)
 configure_file(data/data_concat.csv ${CMAKE_CURRENT_BINARY_DIR}/data_concat.csv COPYONLY)

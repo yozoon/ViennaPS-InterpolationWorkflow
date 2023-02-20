@@ -84,7 +84,7 @@ public:
 
     std::vector<NumericType> featureLabels(nodes.size(), 0.);
     for (unsigned i = 0; i < normals.size(); ++i) {
-      auto &normal = normals[i];
+      const auto &normal = normals[i];
       auto nx = normal[horizontalDir];
       NumericType threshold = 0.1;
       NumericType label = FeatureLabelEnum::NONE;
@@ -163,7 +163,7 @@ public:
       NumericType lowerDistance = std::numeric_limits<NumericType>::max();
       NumericType upperWidth = 0.;
       NumericType lowerWidth = 0.;
-      for (auto &nb : neighbors) {
+      for (const auto &nb : neighbors) {
         NumericType label = featureLabels[nb.first];
         NumericType nodeZ = nodes[nb.first][verticalDir];
         NumericType nodeX = nodes[nb.first][horizontalDir];
@@ -231,9 +231,9 @@ public:
       std::transform(range.begin(), range.end(), range.begin(),
                      [edgeAffinity](NumericType xi) {
                        return xi < 0 ? 1.0 - std::exp(edgeAffinity * xi)
-                                     : std::exp(-edgeAffinity * xi) - 1.0;
+                                     : std::expm1(-edgeAffinity * xi);
                      });
-      maxVal = std::abs(std::exp(-edgeAffinity) - 1.);
+      maxVal = std::abs(std::expm1(-edgeAffinity));
     }
     // Now transform the points back into the interval [0,1] (or (0,1) if
     // closed==False)
@@ -243,11 +243,11 @@ public:
     if (ascending) {
       if (edgeAffinity > 0)
         std::transform(range.begin(), range.end(), range.begin(),
-                       [](auto &v) { return 1.0 - v; });
+                       [](const auto &v) { return 1.0 - v; });
     } else {
       if (edgeAffinity <= 0)
         std::transform(range.begin(), range.end(), range.begin(),
-                       [](auto &v) { return 1.0 - v; });
+                       [](const auto &v) { return 1.0 - v; });
     }
   }
 
