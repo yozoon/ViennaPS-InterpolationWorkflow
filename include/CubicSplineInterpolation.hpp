@@ -20,41 +20,6 @@ void sgbsv_(int *, int *, int *, int *, float *, int *, int *, float *, int *,
             int *);
 }
 
-// #include <fmt/core.h>
-// #include <fmt/ranges.h>
-
-// template <typename NumericType>
-// void printMatrix(NumericType *mat, int numRows, int numCols) {
-//   for (int i = 0; i < numRows; ++i) {
-//     for (int j = 0; j < numCols; ++j) {
-//       fmt::print("{:.3f}, ", mat[j * numRows + i]);
-//     }
-//     fmt::print("\n");
-//   }
-// }
-
-// template <typename NumericType>
-// void printTridiagMatrix(NumericType *upperDiag, NumericType *diag,
-//                         NumericType *lowerDiag, int size) {
-//   for (int i = 0; i < size; ++i) {
-//     for (int j = 0; j < size; ++j) {
-//       if (i == j) {
-//         // diag
-//         fmt::print("{:.3f}, ", diag[i]);
-//       } else if (j == i - 1) {
-//         // Lower diag
-//         fmt::print("{:.3f}, ", lowerDiag[j]);
-//       } else if (j == i + 1) {
-//         // upper diag
-//         fmt::print("{:.3f}, ", upperDiag[i]);
-//       } else {
-//         fmt::print("0.000, ");
-//       }
-//     }
-//     fmt::print("\n");
-//   }
-// }
-
 enum SplineBoundaryConditionType : unsigned {
   NOT_A_KNOT,
   NATURAL,

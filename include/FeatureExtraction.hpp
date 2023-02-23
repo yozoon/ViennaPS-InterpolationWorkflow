@@ -11,8 +11,7 @@
 #include <lsToDiskMesh.hpp>
 #include <lsToSurfaceMesh.hpp>
 
-#include <psKDTree.hpp>
-
+#include "KDTree.hpp"
 #include "span.hpp"
 
 template <typename NumericType, int D> class FeatureExtraction {

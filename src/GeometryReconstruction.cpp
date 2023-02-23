@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include <lsDomain.hpp>
 #include <lsSmartPointer.hpp>
 
 #include "AdvectionCallback.hpp"
@@ -22,11 +23,12 @@ int main() {
   params.stickingProbability = .4;
 
   // Generate the initial trench geometry
+  auto levelset = MakeTrench<NumericType, D>(
+      params.gridDelta, params.xExtent, params.yExtent, params.trenchWidth,
+      params.trenchHeight, params.taperAngle, 0.);
+
   auto geometry = lsSmartPointer<psDomain<NumericType, D>>::New();
-  MakeTrench<NumericType, D>(geometry, params.gridDelta, params.xExtent,
-                             params.yExtent, params.trenchWidth,
-                             params.trenchHeight, params.taperAngle, 0.)
-      .apply();
+  geometry->insertNextLevelSet(levelset);
   geometry->printSurface("GR_initial.vtp");
 
   // Run a physical deposition simulation
@@ -55,7 +57,7 @@ int main() {
   assert(sampleLocations->size() == features->size());
 
   // Now reconstruct the geometry based on the extracted features
-  NumericType origin[D] = {0.};
+  std::array<NumericType, 3> origin = {0.};
   origin[D - 1] = params.processTime + params.trenchHeight;
 
   auto ls = lsSmartPointer<lsDomain<NumericType, D>>::New(

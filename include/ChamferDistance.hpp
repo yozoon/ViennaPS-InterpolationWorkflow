@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <array>
 
-#include <psKDTree.hpp>
+#include "KDTree.hpp"
 
 /**
  * Based on the chamfer distance score introduced in "A Point Set Generation

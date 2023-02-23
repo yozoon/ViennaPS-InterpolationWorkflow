@@ -22,7 +22,7 @@ void executeProcess(lsSmartPointer<psDomain<NumericType, D>> geometry,
   auto processModel =
       SimpleDeposition<NumericType, D>(
           params.stickingProbability /*particle sticking probability*/,
-          params.sourcePower /*particel source power*/)
+          params.sourcePower /*particle source power*/)
           .getProcessModel();
 
   processModel->setAdvectionCallback(advectionCallback);

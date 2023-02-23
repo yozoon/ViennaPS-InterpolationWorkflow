@@ -1,9 +1,6 @@
 #ifndef ADVECTION_CALLBACK_HPP
 #define ADVECTION_CALLBACK_HPP
 
-#include <iomanip>
-#include <iostream>
-
 #include <psAdvectionCallback.hpp>
 #include <psCSVWriter.hpp>
 #include <psSmartPointer.hpp>
