@@ -11,8 +11,8 @@
   Creates a trench geometry in z(3D)/y(2D) direction.
 */
 template <class NumericType, int D> class MakeTrench {
-  using LSPtrType = psSmartPointer<lsDomain<NumericType, D>>;
-  using PSPtrType = psSmartPointer<psDomain<NumericType, D>>;
+  using LSPtrType = lsSmartPointer<lsDomain<NumericType, D>>;
+  using PSPtrType = lsSmartPointer<psDomain<NumericType, D>>;
 
 public:
   PSPtrType domain = nullptr;
@@ -105,7 +105,7 @@ public:
     auto cutout = LSPtrType::New(bounds, boundaryCons, gridDelta);
 
     if (leftTaperingAngle || rightTaperingAngle) {
-      auto mesh = psSmartPointer<lsMesh<NumericType>>::New();
+      auto mesh = lsSmartPointer<lsMesh<NumericType>>::New();
       const NumericType leftOffset =
           std::tan(leftTaperingAngle * rayInternal::PI / 180.) * trenchDepth;
       const NumericType rightOffset =

@@ -40,7 +40,7 @@ public:
     if (!featureExtraction)
       return;
 
-    featureExtraction->setDomain(domain);
+    featureExtraction->setDomain(domain->getLevelSets()->back());
     featureExtraction->apply();
 
     auto features = featureExtraction->getFeatures();

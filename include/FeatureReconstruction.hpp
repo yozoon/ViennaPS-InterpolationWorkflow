@@ -8,13 +8,13 @@
 #include <lsMesh.hpp>
 #include <lsVTKWriter.hpp>
 
-#include <psSmartPointer.hpp>
+#include <lsSmartPointer.hpp>
 
 #include "span.hpp"
 
 template <typename NumericType, int D> class FeatureReconstruction {
 
-  psSmartPointer<lsDomain<NumericType, D>> &levelset;
+  lsSmartPointer<lsDomain<NumericType, D>> levelset;
   const NumericType (&origin)[D];
   const std::vector<NumericType> &sampleLocations;
   const std::vector<NumericType> &features;
@@ -24,11 +24,10 @@ template <typename NumericType, int D> class FeatureReconstruction {
   int horizontalDir = 0;
 
 public:
-  FeatureReconstruction(
-      psSmartPointer<lsDomain<NumericType, D>> &passedLevelset,
-      const NumericType (&passedOrigin)[D],
-      const std::vector<NumericType> &passedSampleLocations,
-      const std::vector<NumericType> &passedFeatures)
+  FeatureReconstruction(lsSmartPointer<lsDomain<NumericType, D>> passedLevelset,
+                        const NumericType (&passedOrigin)[D],
+                        const std::vector<NumericType> &passedSampleLocations,
+                        const std::vector<NumericType> &passedFeatures)
       : levelset(passedLevelset), origin(passedOrigin),
         sampleLocations(passedSampleLocations), features(passedFeatures),
         eps(1e-4) {}
@@ -45,7 +44,7 @@ public:
       NumericType normal[D] = {0.};
       normal[verticalDir] = 1.;
 
-      auto plane = psSmartPointer<lsPlane<NumericType, D>>::New(origin, normal);
+      auto plane = lsSmartPointer<lsPlane<NumericType, D>>::New(origin, normal);
       lsMakeGeometry<NumericType, D>(levelset, plane).apply();
     }
 
@@ -63,6 +62,8 @@ public:
 
       NumericType depth = features.front();
 
+      // Create spans for specific ranges in the feature and location vectors
+      // (to simplify indexing and make the algorithm more readable)
       const auto rightFeatures =
           nonstd::span(std::next(features.begin(), 1),
                        std::next(features.begin(), numSamplesRight + 1));
@@ -83,10 +84,10 @@ public:
       unsigned j = 0;
       while (j < std::min(numSamplesRight, numSamplesLeft)) {
         // Manually create a surface mesh based on the extracted features
-        auto mesh = psSmartPointer<lsMesh<>>::New();
+        auto mesh = lsSmartPointer<lsMesh<>>::New();
 
         if (j == 0) {
-          // Add one point on top of the geometry, so that we avoid potential
+          // Add one point on top of the geometry, in order to avoid potential
           // sharp corners
           std::array<NumericType, 3> point{0.};
           std::copy(std::begin(origin), std::end(origin), point.begin());
@@ -98,11 +99,15 @@ public:
         }
 
         unsigned nextJ = j;
+
+        // Add points of the right sidewall to the mesh until we encounter a
+        // pinch-off (the distance between the left and right sidwall features
+        // at that location falling below a certain threshold)
         for (unsigned i = nextJ; i < rightFeatures.size(); ++i) {
           nextJ = i;
 
           if (rightFeatures[i] - leftFeatures[std::min(numSamplesLeft - 1, i)] <
-              gridDelta / 10) {
+              gridDelta / 5) {
 #ifndef NDEBUG
             std::cout << "Pinchoff point detected!\n";
 #endif
@@ -118,6 +123,9 @@ public:
           mesh->insertNextNode(point);
         }
 
+        // Add the points of the left sidewall in reverse order to the mesh,
+        // starting from the last, or the one at the previously determined
+        // pinch-off location.
         for (int i = std::min(numSamplesLeft - 1, nextJ);
              i > static_cast<int>(j); --i) {
           std::array<NumericType, 3> point{0.};
@@ -130,7 +138,7 @@ public:
         }
 
         if (j == 0) {
-          // Add one point on top of the geometry, so that we avoid potential
+          // Add one point on top of the geometry, in order to avoid potential
           // sharp corners
           std::array<NumericType, 3> point{0.};
           std::copy(std::begin(origin), std::end(origin), point.begin());
@@ -170,7 +178,7 @@ public:
         // Create the new levelset based on the mesh and substract it from the
         // plane
         auto hull =
-            psSmartPointer<lsDomain<NumericType, D>>::New(levelset->getGrid());
+            lsSmartPointer<lsDomain<NumericType, D>>::New(levelset->getGrid());
 
         lsFromSurfaceMesh<NumericType, D>(hull, mesh).apply();
 

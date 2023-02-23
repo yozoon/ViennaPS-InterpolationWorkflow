@@ -8,15 +8,14 @@
 #include <psUtils.hpp>
 
 #include "AdvectionCallback.hpp"
-#include "FeatureExtraction.hpp"
 #include "Parameters.hpp"
 
 template <typename NumericType, int D, typename AdvectionCallbackType>
-void executeProcess(psSmartPointer<psDomain<NumericType, D>> geometry,
+void executeProcess(lsSmartPointer<psDomain<NumericType, D>> geometry,
                     const Parameters<NumericType> &params,
-                    psSmartPointer<AdvectionCallbackType> advectionCallback) {
+                    lsSmartPointer<AdvectionCallbackType> advectionCallback) {
   // copy top layer to capture deposition
-  auto depoLayer = psSmartPointer<lsDomain<NumericType, D>>::New(
+  auto depoLayer = lsSmartPointer<lsDomain<NumericType, D>>::New(
       geometry->getLevelSets()->back());
   geometry->insertNextLevelSet(depoLayer);
 
@@ -38,10 +37,10 @@ void executeProcess(psSmartPointer<psDomain<NumericType, D>> geometry,
 }
 
 template <typename NumericType, int D>
-void executeProcess(psSmartPointer<psDomain<NumericType, D>> geometry,
+void executeProcess(lsSmartPointer<psDomain<NumericType, D>> geometry,
                     const Parameters<NumericType> &params) {
   // copy top layer to capture deposition
-  auto depoLayer = psSmartPointer<lsDomain<NumericType, D>>::New(
+  auto depoLayer = lsSmartPointer<lsDomain<NumericType, D>>::New(
       geometry->getLevelSets()->back());
   geometry->insertNextLevelSet(depoLayer);
 

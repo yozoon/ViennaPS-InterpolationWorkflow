@@ -7,7 +7,7 @@
 #include <fmt/ostream.h>
 #include <fmt/ranges.h>
 
-#include <psSmartPointer.hpp>
+#include <lsSmartPointer.hpp>
 
 #include "CubicSplineInterpolation.hpp"
 
@@ -154,7 +154,7 @@ int main() {
     sgi.setDataDimensions(3, functions.size());
     sgi.setBCType(SplineBoundaryConditionType::NOT_A_KNOT);
     sgi.setData(
-        psSmartPointer<const std::vector<std::vector<NumericType>>>::New(data));
+        lsSmartPointer<const std::vector<std::vector<NumericType>>>::New(data));
     sgi.initialize();
 
     // Interpolate along a grid

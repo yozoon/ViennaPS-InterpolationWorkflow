@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include <psSmartPointer.hpp>
+#include <lsSmartPointer.hpp>
 
 #include "AdvectionCallback.hpp"
 #include "ChamferDistance.hpp"
@@ -22,7 +22,7 @@ int main() {
   params.stickingProbability = .4;
 
   // Generate the initial trench geometry
-  auto geometry = psSmartPointer<psDomain<NumericType, D>>::New();
+  auto geometry = lsSmartPointer<psDomain<NumericType, D>>::New();
   MakeTrench<NumericType, D>(geometry, params.gridDelta, params.xExtent,
                              params.yExtent, params.trenchWidth,
                              params.trenchHeight, params.taperAngle, 0.)
@@ -35,7 +35,7 @@ int main() {
 
   // Extract features from the geometry
   FeatureExtraction<NumericType, D> extraction;
-  extraction.setDomain(geometry);
+  extraction.setDomain(geometry->getLevelSets()->back());
   extraction.setNumberOfSamples(numberOfSamples, false /* open */);
   extraction.setEdgeAffinity(0.0);
   extraction.setOrigin(std::array<NumericType, 3>{0., params.trenchHeight, 0.});
@@ -58,23 +58,23 @@ int main() {
   NumericType origin[D] = {0.};
   origin[D - 1] = params.processTime + params.trenchHeight;
 
-  auto ls = psSmartPointer<lsDomain<NumericType, D>>::New(
+  auto ls = lsSmartPointer<lsDomain<NumericType, D>>::New(
       geometry->getLevelSets()->back()->getGrid());
 
   FeatureReconstruction<NumericType, D>(ls, origin, *sampleLocations, *features)
       .apply();
 
-  auto reconstruction = psSmartPointer<psDomain<NumericType, D>>::New();
+  auto reconstruction = lsSmartPointer<psDomain<NumericType, D>>::New();
   reconstruction->insertNextLevelSet(ls);
   reconstruction->printSurface("GR_reconstruction.vtp");
 
   // Now compare the two geometries by using the chamfer distance as a measure
   // of similarity
-  auto mesh1 = psSmartPointer<lsMesh<>>::New();
+  auto mesh1 = lsSmartPointer<lsMesh<>>::New();
   lsToDiskMesh<NumericType, D>(ls, mesh1).apply();
   auto nodes1 = mesh1->getNodes();
 
-  auto mesh2 = psSmartPointer<lsMesh<>>::New();
+  auto mesh2 = lsSmartPointer<lsMesh<>>::New();
   lsToDiskMesh<NumericType, D>(geometry->getLevelSets()->back(), mesh2).apply();
   auto nodes2 = mesh2->getNodes();
 

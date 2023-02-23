@@ -6,11 +6,11 @@
 #include <vector>
 
 #include <lsCalculateNormalVectors.hpp>
+#include <lsDomain.hpp>
 #include <lsMarkVoidPoints.hpp>
 #include <lsToDiskMesh.hpp>
 #include <lsToSurfaceMesh.hpp>
 
-#include <psDomain.hpp>
 #include <psKDTree.hpp>
 
 #include "span.hpp"
@@ -24,14 +24,14 @@ template <typename NumericType, int D> class FeatureExtraction {
   };
 
 public:
-  using ConstPtr = psSmartPointer<const std::vector<NumericType>>;
+  using ConstPtr = lsSmartPointer<const std::vector<NumericType>>;
   FeatureExtraction() {}
 
-  FeatureExtraction(psSmartPointer<psDomain<NumericType, D>> passedDomain)
-      : domain(passedDomain) {}
+  FeatureExtraction(lsSmartPointer<lsDomain<NumericType, D>> passedDomain)
+      : levelset(passedDomain) {}
 
-  void setDomain(psSmartPointer<psDomain<NumericType, D>> passedDomain) {
-    domain = passedDomain;
+  void setDomain(lsSmartPointer<lsDomain<NumericType, D>> passedDomain) {
+    levelset = passedDomain;
   }
 
   void setNumberOfSamples(int passedNumberOfSamples, bool passedClosed = true) {
@@ -57,20 +57,18 @@ public:
   void apply() {
     initializeSampleLocations();
 
-    if (!domain)
+    if (!levelset)
       return;
 
-    const NumericType gridDelta = domain->getGrid().getGridDelta();
+    const NumericType gridDelta = levelset->getGrid().getGridDelta();
 
     // Re-initialize the feature vector with a value of zero.
     features.clear();
     features.resize(sampleLocations.size(), 0.);
 
-    auto &levelset = domain->getLevelSets()->back();
-
     // Convert the geometry to a surface mesh and extract the nodes as well as
     // the void points
-    auto mesh = psSmartPointer<lsMesh<>>::New();
+    auto mesh = lsSmartPointer<lsMesh<>>::New();
     lsToDiskMesh<NumericType, D>(levelset, mesh).apply();
     auto nodes = mesh->getNodes();
 
@@ -141,7 +139,7 @@ public:
         loc.push_back(origin[D - 2]);
       }
 
-      auto neighborsOpt = tree.findNearestWithinRadius(loc, gridDelta);
+      auto neighborsOpt = tree.findNearestWithinRadius(loc, 2.0 * gridDelta);
       if (!neighborsOpt)
         continue;
 
@@ -296,7 +294,7 @@ public:
   }
 
 private:
-  psSmartPointer<psDomain<NumericType, D>> domain = nullptr;
+  lsSmartPointer<lsDomain<NumericType, D>> levelset = nullptr;
 
   std::array<NumericType, 3> origin{0.};
   int numberOfSamples = 32;

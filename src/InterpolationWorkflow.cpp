@@ -23,7 +23,7 @@
 namespace fs = std::filesystem;
 
 template <typename NumericType, int D>
-psSmartPointer<lsDomain<NumericType, D>>
+lsSmartPointer<lsDomain<NumericType, D>>
 createEmptyLevelset(const Parameters<NumericType> &params) {
   double bounds[2 * D];
   bounds[0] = -params.xExtent / 2.;
@@ -48,7 +48,7 @@ createEmptyLevelset(const Parameters<NumericType> &params) {
   boundaryCons[D - 1] =
       lsDomain<NumericType, D>::BoundaryType::INFINITE_BOUNDARY;
 
-  return psSmartPointer<lsDomain<NumericType, D>>::New(bounds, boundaryCons,
+  return lsSmartPointer<lsDomain<NumericType, D>>::New(bounds, boundaryCons,
                                                        params.gridDelta);
 }
 
@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
 
   // Interpolation based on previous simulation results
   auto start = Clock::now();
-  auto interpolatedGeometry = psSmartPointer<psDomain<NumericType, D>>::New();
+  auto interpolatedGeometry = lsSmartPointer<psDomain<NumericType, D>>::New();
   {
     psCSVDataSource<NumericType> dataSource;
     dataSource.setFilename(dataFile.string());
@@ -177,11 +177,16 @@ int main(int argc, char *argv[]) {
           CubicSplineInterpolation<NumericType>(uniqueTimesteps, timedFeatures)(
               params.processTime / extractionInterval);
     }
+
+    // for (unsigned i = 0; i < estimatedFeatures.size(); ++i) {
+    //   std::cout << i << ": " << estimatedFeatures[i] << '\n';
+    // }
+
     NumericType origin[D] = {0.};
     origin[D - 1] = params.processTime + params.trenchHeight;
 
     auto substrate = createEmptyLevelset<NumericType, D>(params);
-    auto geometry = psSmartPointer<lsDomain<NumericType, D>>::New(substrate);
+    auto geometry = lsSmartPointer<lsDomain<NumericType, D>>::New(substrate);
 
     if (sampleLocations.size() == estimatedFeatures.size()) {
       FeatureReconstruction<NumericType, D>(geometry, origin, sampleLocations,
@@ -206,7 +211,7 @@ int main(int argc, char *argv[]) {
 
   // Actual simulation for reference
   start = Clock::now();
-  auto referenceGeometry = psSmartPointer<psDomain<NumericType, D>>::New();
+  auto referenceGeometry = lsSmartPointer<psDomain<NumericType, D>>::New();
   {
     psMakeTrench<NumericType, D>(
         referenceGeometry, params.gridDelta /* grid delta */,
@@ -231,12 +236,12 @@ int main(int argc, char *argv[]) {
 
   // Now compare the two geometries by using the chamfer distance as a measure
   // of similarity
-  auto mesh1 = psSmartPointer<lsMesh<>>::New();
+  auto mesh1 = lsSmartPointer<lsMesh<>>::New();
   lsToDiskMesh<NumericType, D>(referenceGeometry->getLevelSets()->back(), mesh1)
       .apply();
   auto nodes1 = mesh1->getNodes();
 
-  auto mesh2 = psSmartPointer<lsMesh<>>::New();
+  auto mesh2 = lsSmartPointer<lsMesh<>>::New();
   lsToDiskMesh<NumericType, D>(interpolatedGeometry->getLevelSets()->back(),
                                mesh2)
       .apply();

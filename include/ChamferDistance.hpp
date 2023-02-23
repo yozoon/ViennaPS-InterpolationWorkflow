@@ -1,10 +1,10 @@
 #ifndef CHAMFER_DISTANCE_HPP
 #define CHAMFER_DISTANCE_HPP
 
+#include <algorithm>
 #include <array>
 
 #include <psKDTree.hpp>
-#include <psSmartPointer.hpp>
 
 /**
  * Based on the chamfer distance score introduced in "A Point Set Generation
@@ -37,18 +37,20 @@ public:
 
     PCVec firstPointVec;
     firstPointVec.reserve(firstPointCloud.size());
-    for (const auto &pt : firstPointCloud)
-      firstPointVec.emplace_back(
-          std::vector<NumericType>(pt.begin(), pt.end()));
+    std::transform(firstPointCloud.cbegin(), firstPointCloud.cend(),
+                   std::back_inserter(firstPointVec), [](const auto &pt) {
+                     return std::vector<NumericType>(pt.begin(), pt.end());
+                   });
 
     LocatorType firstLocator(firstPointVec);
     firstLocator.build();
 
     PCVec secondPointVec;
     secondPointVec.reserve(secondPointCloud.size());
-    for (const auto &pt : secondPointCloud)
-      secondPointVec.emplace_back(
-          std::vector<NumericType>(pt.begin(), pt.end()));
+    std::transform(secondPointCloud.cbegin(), secondPointCloud.cend(),
+                   std::back_inserter(secondPointVec), [](const auto &pt) {
+                     return std::vector<NumericType>(pt.begin(), pt.end());
+                   });
 
     LocatorType secondLocator(secondPointVec);
     secondLocator.build();

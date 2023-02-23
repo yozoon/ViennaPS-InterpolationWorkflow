@@ -24,7 +24,7 @@ int main(int argc, const char *const *const) {
 
   // Instantiate the featureExtraction
   auto featureExtraction =
-      psSmartPointer<FeatureExtraction<NumericType, D>>::New();
+      lsSmartPointer<FeatureExtraction<NumericType, D>>::New();
   featureExtraction->setNumberOfSamples(numberOfSamples,
                                         false /* => open interval*/);
   // Uniformly spaced sample points
@@ -36,7 +36,7 @@ int main(int argc, const char *const *const) {
   auto sampleLocations = featureExtraction->getSampleLocations();
 
   const std::string filename = "data.csv";
-  auto writer = psSmartPointer<psCSVWriter<NumericType>>::New(filename);
+  auto writer = lsSmartPointer<psCSVWriter<NumericType>>::New(filename);
 
   // Creation of a descriptive/ detailed header
   std::string header = "taperAngle,stickingProbability,";
@@ -87,18 +87,18 @@ int main(int argc, const char *const *const) {
       // certain pre-defined advection timesteps.
       NumericType deltaT = extractionInterval / params.stickingProbability;
 
-      auto advectionCallback = psSmartPointer<AdvectionCallback<
+      auto advectionCallback = lsSmartPointer<AdvectionCallback<
           NumericType, D, decltype(featureExtraction)::element_type,
           decltype(writer)::element_type>>::New(deltaT);
 
       advectionCallback->setFeatureExtraction(featureExtraction);
 
-      psSmartPointer<std::vector<NumericType>> dataPtr = nullptr;
+      lsSmartPointer<std::vector<NumericType>> dataPtr = nullptr;
       advectionCallback->setPrefixData(std::vector<NumericType>{
           params.taperAngle, params.stickingProbability});
       advectionCallback->setWriter(writer);
 
-      auto geometry = psSmartPointer<psDomain<NumericType, D>>::New();
+      auto geometry = lsSmartPointer<psDomain<NumericType, D>>::New();
       psMakeTrench<NumericType, D>(geometry, params.gridDelta, params.xExtent,
                                    params.yExtent, params.trenchWidth,
                                    params.trenchHeight, params.taperAngle)

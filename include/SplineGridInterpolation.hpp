@@ -15,8 +15,8 @@ template <typename NumericType> class SplineGridInterpolation {
   using SizeType = size_t;
   using ItemType = std::vector<NumericType>;
   using VectorType = std::vector<ItemType>;
-  using VectorPtr = psSmartPointer<std::vector<ItemType>>;
-  using ConstPtr = psSmartPointer<const std::vector<ItemType>>;
+  using VectorPtr = lsSmartPointer<std::vector<ItemType>>;
+  using ConstPtr = lsSmartPointer<const std::vector<ItemType>>;
 
 public:
   // Future improvement: parallelize the recursive sorting using OpenMP taks
