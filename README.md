@@ -1,5 +1,7 @@
 # Interpolation Workflow
 
+Example application demonstrating the use of cubic spline interpolation for interpolating between results of physical deposition simulations. 
+
 ## Building
 ### Supported Operating Systems
 
