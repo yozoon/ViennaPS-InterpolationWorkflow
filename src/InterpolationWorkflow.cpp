@@ -11,11 +11,11 @@
 #include <lsToSurfaceMesh.hpp>
 #include <lsVTKWriter.hpp>
 
-#include <psCSVDataSource.hpp>
-
+#include "CSVReader.hpp"
 #include "GeometricTrenchModel.hpp"
 #include "MakeTrench.hpp"
 #include "Parameters.hpp"
+#include "Utils.hpp"
 
 namespace fs = std::filesystem;
 
@@ -32,37 +32,32 @@ int main(int argc, char *argv[]) {
 
   Parameters<NumericType> params;
   if (argc > 2) {
-    params.taperAngle = std::stof(argv[2]);
-  }
-  if (argc > 3) {
-    NumericType tmp = std::stof(argv[3]);
-    if (tmp > 0 && tmp <= 1.0)
-      params.stickingProbability = tmp;
-  }
-  if (argc > 4) {
-    NumericType tmp = std::stof(argv[4]);
-    if (tmp >= 0.0)
-      params.processTime = tmp;
+    auto config = psUtils::readConfigFile(argv[2]);
+    if (config.empty()) {
+      std::cerr << "Empty config provided" << std::endl;
+      return -1;
+    }
+    params.fromMap(config);
   }
 
   // Interpolation based on previous simulation results
   auto start = Clock::now();
 
-  psCSVDataSource<NumericType> dataSource;
-  dataSource.setFilename(dataFile.string());
+  CSVReader<NumericType> reader;
+  reader.setFilename(dataFile.string());
 
   // Get a copy of the data from the data source
-  auto data = dataSource.getData();
+  auto data = reader.getData();
 
   // Also read the data that was stored alongside the actual data describing
   // where it was sampled from (at which relative height)
-  auto sampleLocations = dataSource.getPositionalParameters();
+  auto sampleLocations = reader.getPositionalParameters();
 
   // The input dimension is provided by the csv file named parameter
   // 'InputDim' In our case it is 2 since we use taper angle and sticking
   // probability as input parameters.
   int InputDim;
-  auto namedParams = dataSource.getNamedParameters();
+  auto namedParams = reader.getNamedParameters();
   if (auto id = namedParams.find("InputDimension"); id != namedParams.end()) {
     InputDim = std::round(id->second);
   } else {

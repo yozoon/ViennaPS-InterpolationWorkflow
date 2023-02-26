@@ -113,8 +113,9 @@ public:
     auto [estimatedFeatures, isInside] = estimationOpt.value();
 
     lsMessage::getInstance()
-        .addDebug("Evaluation point inside data grid boundaries: " +
-                  std::to_string(isInside))
+        .addDebug(
+            std::string("Evaluation point within data grid boundaries: ") +
+            (isInside ? std::string("true") : std::string("false")))
         .print();
 
     if (sampleLocations.size() != estimatedFeatures.size()) {
