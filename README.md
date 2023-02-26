@@ -46,7 +46,7 @@ The _data.csv_ file contains data sampled from a regular grid of the parameter s
 | _stickingProbability_ | 1.0, 0.7, 0.4, 0.1 |
 | _processTime_ | 0, 1, 2, 3, 4, 5 |
 
-When the _InterpolationWorkflow_ executable is invoked, two _.vtp_ files are generated: 1. _IW_initial.vtp_ which is the trench geometry before the deposition process and 2. _IW_interpolated.vtp_ which is the geometry after the deposition process, created through cubic interpolation of geometric features based on the provided data samples (_data.csv_ file).
+When the _InterpolationWorkflow_ executable is invoked, two _.vtp_ files are generated: 1. _IW_initial.vtp_ which is the trench geometry before the deposition process and 2. _IW_interpolated.vtp_ which is the geometry after the deposition process, created through cubic spline interpolation of geometric features based on the provided data samples (_data.csv_ file).
 
 ```bash
 ./InterpolationWorkflow data.csv config.txt
