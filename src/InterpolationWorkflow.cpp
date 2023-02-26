@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
   {
     auto mesh = lsSmartPointer<lsMesh<>>::New();
     lsToSurfaceMesh<NumericType, D>(substrate, mesh).apply();
-    lsVTKWriter<NumericType>(mesh, "IW_interpolated_spline.vtp").apply();
+    lsVTKWriter<NumericType>(mesh, "IW_interpolated.vtp").apply();
   }
 
   auto stop = Clock::now();
