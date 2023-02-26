@@ -20,15 +20,8 @@ Example application demonstrating the use of cubic spline interpolation for inte
 * Optional:
   * [ViennaPS](https://github.com/ViennaTools/ViennaPS)
 
-## Components
-
-* __InterpolationWorkflow__: The main executable of this example project.
-
-* If _ViennaPS_ installation is available:
-  * __CreateData__: The executable used to create the _data.csv_ file.
-  * __GeometryReconstruction__: A simple example which first runs a physical deposition on a trench geometry. Afterwards the dimensions of the final geometry are extracted and subsequently used to geometrically reconstruct the trench geometry.
-
-## Building
+### Compiling
+If the above requirements are fulfilled, one can use the following commands to clone and compile the project:
 
 ```bash
 git clone https://github.com/yozoon/ViennaPS-InterpolationWorkflow.git
@@ -37,6 +30,14 @@ mkdir build && cd build
 cmake ..
 make
 ```
+
+## Components
+
+* __InterpolationWorkflow__: The main executable of this example project.
+
+* If _ViennaPS_ installation is available:
+  * __CreateData__: The executable used to create the _data.csv_ file.
+  * __GeometryReconstruction__: A simple example which first runs a physical deposition on a trench geometry. Afterwards the dimensions of the final geometry are extracted and subsequently used to geometrically reconstruct the trench geometry.
 
 ## Usage
 
