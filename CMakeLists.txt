@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.20)
 
 project("InterpolationWorkflow")
 
-set(VIENNAPS_VERBOSE OFF)
-
 # Check dependencies
 find_package(ViennaLS REQUIRED)
 find_package(LAPACK REQUIRED)
@@ -38,8 +36,13 @@ add_executable(${WORKFLOW} src/${WORKFLOW}.cpp)
 target_include_directories(${WORKFLOW} PUBLIC ${PROJECT_INCLUDE_DIRS})
 target_link_libraries(${WORKFLOW} PRIVATE ${PROJECT_LIBRARIES})
 
+# Copy data and config files to the build directory
+configure_file(data/data.csv ${CMAKE_CURRENT_BINARY_DIR}/data.csv COPYONLY)
+configure_file(data/config.txt ${CMAKE_CURRENT_BINARY_DIR}/config.txt COPYONLY)
+
 # Optional executables for generating the dataset as well as for testing
 # the extraction and reconstruction functionality
+set(VIENNAPS_VERBOSE OFF)
 find_package(ViennaPS)
 if(ViennaPS_FOUND)
   list(APPEND PROJECT_INCLUDE_DIRS ${VIENNAPS_INCLUDE_DIRS})
@@ -57,7 +60,3 @@ if(ViennaPS_FOUND)
   target_include_directories(${CREATE_DATA} PUBLIC ${PROJECT_INCLUDE_DIRS})
   target_link_libraries(${CREATE_DATA} PRIVATE ${PROJECT_LIBRARIES})
 endif()
-
-# Copy data and config files to the build directory
-configure_file(data/data.csv ${CMAKE_CURRENT_BINARY_DIR}/data.csv COPYONLY)
-configure_file(data/config.txt ${CMAKE_CURRENT_BINARY_DIR}/config.txt COPYONLY)

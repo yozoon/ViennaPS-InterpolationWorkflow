@@ -1,7 +1,10 @@
+#include <array>
 #include <iostream>
 
 #include <lsDomain.hpp>
+#include <lsMesh.hpp>
 #include <lsSmartPointer.hpp>
+#include <lsToDiskMesh.hpp>
 
 #include "AdvectionCallback.hpp"
 #include "ChamferDistance.hpp"
@@ -60,8 +63,7 @@ int main() {
   std::array<NumericType, 3> origin = {0.};
   origin[D - 1] = params.processTime + params.trenchHeight;
 
-  auto ls = lsSmartPointer<lsDomain<NumericType, D>>::New(
-      geometry->getLevelSets()->back()->getGrid());
+  auto ls = lsSmartPointer<lsDomain<NumericType, D>>::New(levelset->getGrid());
 
   FeatureReconstruction<NumericType, D>(ls, origin, *sampleLocations, *features)
       .apply();

@@ -19,11 +19,10 @@ template <typename NumericType, int D> class GeometricTrenchDepositionModel {
 
   LSPtrType levelset = nullptr;
 
-  SplineGridInterpolation<NumericType> gridInterpolation;
-
   std::vector<NumericType> sampleLocations;
   std::array<NumericType, 3> origin;
 
+  SplineGridInterpolation<NumericType> gridInterpolation;
   NumericType extractionInterval;
 
   bool advanceTopSurface = true;
@@ -137,7 +136,7 @@ public:
     }
     // Second: Generate the trench stamp based on the interpolated features
     auto stamp = MakeTrenchStamp(levelset->getGrid(), origin, sampleLocations,
-                                 estimatedFeatures, 5.);
+                                 estimatedFeatures);
     if (!stamp) {
       lsMessage::getInstance()
           .addError("Error while generating the trench stamp.")

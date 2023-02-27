@@ -12,10 +12,16 @@
 #include <lsVTKWriter.hpp>
 
 #include "CSVReader.hpp"
-#include "GeometricTrenchModel.hpp"
+#include "GeometricTrenchDepositionModel.hpp"
 #include "MakeTrench.hpp"
 #include "Parameters.hpp"
 #include "Utils.hpp"
+
+#define VISUALIZATION_MESH
+
+#ifdef VISUALIZATION_MESH
+#include <lsWriteVisualizationMesh.hpp>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -96,20 +102,31 @@ int main(int argc, char *argv[]) {
     lsVTKWriter<NumericType>(mesh, "IW_initial.vtp").apply();
   }
 
+  auto depoLayer = lsSmartPointer<lsDomain<NumericType, D>>::New(substrate);
   GeometricTrenchDepositionModel<NumericType, D> geometricModel(
-      substrate, sampleLocations, origin, extractionInterval, true);
+      depoLayer, sampleLocations, origin, extractionInterval, true);
   geometricModel.setData(data, InputDim);
   geometricModel.apply(params.taperAngle, params.stickingProbability,
                        params.processTime);
 
   {
     auto mesh = lsSmartPointer<lsMesh<>>::New();
-    lsToSurfaceMesh<NumericType, D>(substrate, mesh).apply();
+    lsToSurfaceMesh<NumericType, D>(depoLayer, mesh).apply();
     lsVTKWriter<NumericType>(mesh, "IW_interpolated.vtp").apply();
   }
 
   auto stop = Clock::now();
   std::cout << std::setw(40) << "Interpolation and reconstruction took: ";
   std::cout << std::scientific << Duration(stop - start).count() << "s\n";
+
+#ifdef VISUALIZATION_MESH
+  std::cout << "Writing visualization mesh...\n";
+  lsWriteVisualizationMesh<NumericType, D> visMesh;
+  visMesh.insertNextLevelSet(substrate);
+  visMesh.insertNextLevelSet(depoLayer);
+  visMesh.setFileName("IW");
+  visMesh.apply();
+#endif
+
   return EXIT_SUCCESS;
 }

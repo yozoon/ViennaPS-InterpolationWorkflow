@@ -1,6 +1,7 @@
 #ifndef MAKE_TRENCH_STAMP_HPP
 #define MAKE_TRENCH_STAMP_HPP
 
+#include <algorithm>
 #include <array>
 #include <vector>
 
@@ -19,10 +20,28 @@
 #endif
 
 template <typename NumericType, int D>
-lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
-    const hrleGrid<D> &grid, const std::array<NumericType, 3> &origin,
-    const std::vector<NumericType> &sampleLocations,
-    const std::vector<NumericType> &features, const NumericType extent = 0.) {
+std::array<NumericType, 2 * D> getBounds(const hrleGrid<D> &grid) {
+  std::array<NumericType, 2 * D> bounds{0.};
+  for (unsigned i = 0; i < D; ++i) {
+    // Retrieve min and max bounds for each direction that does not have
+    // infinite boundary condition
+    if (grid.getBoundaryConditions(i) !=
+        lsDomain<NumericType, D>::BoundaryType::INFINITE_BOUNDARY) {
+      auto minIndex = grid.getMinGridPoint(i);
+      auto maxIndex = grid.getMaxGridPoint(i);
+      bounds[2 * i] = grid.index2Coordinate(minIndex);
+      bounds[2 * i + 1] = grid.index2Coordinate(maxIndex);
+    }
+  }
+  return bounds;
+}
+
+template <typename NumericType, int D>
+lsSmartPointer<lsDomain<NumericType, D>>
+MakeTrenchStamp(const hrleGrid<D> &grid,
+                const std::array<NumericType, 3> &origin,
+                const std::vector<NumericType> &sampleLocations,
+                const std::vector<NumericType> &features) {
   int verticalDir = D - 1;
   int horizontalDir = 0;
   int trenchDir = D - 2;
@@ -31,6 +50,8 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
     std::cout << "Not enough features provided for reconstruction!\n";
     return nullptr;
   }
+
+  const auto bounds = getBounds<NumericType, D>(grid);
 
   // INFO: Mesh point numbering CW: solid is enclosed inside points
 
@@ -68,10 +89,10 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
       if constexpr (D == 2) {
         mesh->insertNextNode(point);
       } else if constexpr (D == 3) {
-        point[trenchDir] = extent;
+        point[trenchDir] = bounds[2 * trenchDir + 1];
         mesh->insertNextNode(point);
 
-        point[trenchDir] = -extent;
+        point[trenchDir] = bounds[2 * trenchDir];
         mesh->insertNextNode(point);
       }
       ++k;
@@ -101,10 +122,10 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
       if constexpr (D == 2) {
         mesh->insertNextNode(point);
       } else if constexpr (D == 3) {
-        point[trenchDir] = extent;
+        point[trenchDir] = bounds[2 * trenchDir + 1];
         mesh->insertNextNode(point);
 
-        point[trenchDir] = -extent;
+        point[trenchDir] = bounds[2 * trenchDir];
         mesh->insertNextNode(point);
       }
       ++k;
@@ -125,10 +146,10 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
       if constexpr (D == 2) {
         mesh->insertNextNode(point);
       } else if constexpr (D == 3) {
-        point[trenchDir] = extent;
+        point[trenchDir] = bounds[2 * trenchDir + 1];
         mesh->insertNextNode(point);
 
-        point[trenchDir] = -extent;
+        point[trenchDir] = bounds[2 * trenchDir];
         mesh->insertNextNode(point);
       }
       ++k;
@@ -146,10 +167,10 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
 
         mesh->insertNextNode(point);
       } else if constexpr (D == 3) {
-        point[trenchDir] = extent;
+        point[trenchDir] = bounds[2 * trenchDir + 1];
         mesh->insertNextNode(point);
 
-        point[trenchDir] = -extent;
+        point[trenchDir] = bounds[2 * trenchDir];
         mesh->insertNextNode(point);
       }
       ++k;
@@ -204,7 +225,7 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
       center[verticalDir] /= k;
 
       // Front cover
-      center[trenchDir] = extent;
+      center[trenchDir] = bounds[2 * trenchDir + 1];
       unsigned frontCenterIndex = mesh->insertNextNode(center);
       for (unsigned i = 0; i < k - 1; ++i) {
         mesh->insertNextTriangle(
@@ -214,7 +235,7 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
           std::array<unsigned, 3>{2 * (k - 1), 0, frontCenterIndex});
 
       // Back cover
-      center[trenchDir] = -extent;
+      center[trenchDir] = bounds[2 * trenchDir];
       unsigned backCenterIndex = mesh->insertNextNode(center);
       for (unsigned i = 0; i < k - 1; ++i) {
         mesh->insertNextTriangle(std::array<unsigned, 3>{
@@ -231,8 +252,8 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
         .apply();
 #endif
 
-    // Create the new levelset based on the mesh and substract it from the
-    // plane
+    // Create the new levelset based on the mesh and union it with the
+    // previously generated levelsets.
     auto hull = lsSmartPointer<lsDomain<NumericType, D>>::New(grid);
 
     lsFromSurfaceMesh<NumericType, D>(hull, mesh).apply();
