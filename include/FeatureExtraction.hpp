@@ -11,6 +11,10 @@
 #include <lsToDiskMesh.hpp>
 #include <lsToSurfaceMesh.hpp>
 
+#ifndef NDEBUG
+#include <lsVTKWriter.hpp>
+#endif
+
 #include "KDTree.hpp"
 #include "span.hpp"
 

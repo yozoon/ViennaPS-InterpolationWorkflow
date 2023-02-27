@@ -21,7 +21,7 @@ namespace fs = std::filesystem;
 
 int main(int argc, char *argv[]) {
   using NumericType = double;
-  static constexpr int D = 2;
+  static constexpr int D = 3;
 
   using Clock = std::chrono::high_resolution_clock;
   using Duration = std::chrono::duration<double>;
@@ -99,7 +99,6 @@ int main(int argc, char *argv[]) {
   GeometricTrenchDepositionModel<NumericType, D> geometricModel(
       substrate, sampleLocations, origin, extractionInterval, true);
   geometricModel.setData(data, InputDim);
-
   geometricModel.apply(params.taperAngle, params.stickingProbability,
                        params.processTime);
 

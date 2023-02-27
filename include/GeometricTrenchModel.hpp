@@ -135,10 +135,9 @@ public:
           lsSmartPointer<lsPlane<NumericType, D>>::New(origin.data(), normal);
       lsMakeGeometry<NumericType, D>(levelset, plane).apply();
     }
-
     // Second: Generate the trench stamp based on the interpolated features
     auto stamp = MakeTrenchStamp(levelset->getGrid(), origin, sampleLocations,
-                                 estimatedFeatures);
+                                 estimatedFeatures, 5.);
     if (!stamp) {
       lsMessage::getInstance()
           .addError("Error while generating the trench stamp.")

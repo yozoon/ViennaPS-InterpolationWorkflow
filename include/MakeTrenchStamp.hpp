@@ -21,12 +21,14 @@
 #include "span.hpp"
 
 template <typename NumericType, int D>
-lsSmartPointer<lsDomain<NumericType, D>>
-MakeTrenchStamp(const hrleGrid<D> &grid,
-                const std::array<NumericType, 3> &origin,
-                const std::vector<NumericType> &sampleLocations,
-                const std::vector<NumericType> &features,
-                int verticalDir = D - 1, int horizontalDir = 0) {
+lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
+    const hrleGrid<D> &grid, const std::array<NumericType, 3> &origin,
+    const std::vector<NumericType> &sampleLocations,
+    const std::vector<NumericType> &features, const NumericType extent = 0.) {
+  int verticalDir = D - 1;
+  int horizontalDir = 0;
+  int trenchDir = D - 2;
+
   if (features.size() != sampleLocations.size() || features.size() < 5) {
     std::cout << "Not enough features provided for reconstruction!\n";
     return nullptr;
@@ -70,16 +72,29 @@ MakeTrenchStamp(const hrleGrid<D> &grid,
     // Manually create a surface mesh based on the extracted features
     auto mesh = lsSmartPointer<lsMesh<>>::New();
 
+    unsigned k = 0;
+
     if (j == 0) {
       // Add one point on top of the geometry, in order to avoid potential
       // sharp corners
       std::array<NumericType, 3> point{0.};
       std::copy(std::begin(origin), std::end(origin), point.begin());
 
-      point[horizontalDir] += rightFeatures.front();
-      point[verticalDir] += 2 * gridDelta;
+      if constexpr (D == 2) {
+        point[horizontalDir] += rightFeatures.front();
+        point[verticalDir] += 2 * gridDelta;
 
-      mesh->insertNextNode(point);
+        mesh->insertNextNode(point);
+      } else if constexpr (D == 3) {
+        point[trenchDir] = extent;
+        point[horizontalDir] += rightFeatures.front();
+        point[verticalDir] += 2 * gridDelta;
+
+        mesh->insertNextNode(point);
+        point[trenchDir] = -extent;
+        mesh->insertNextNode(point);
+      }
+      ++k;
     }
 
     unsigned nextJ = j;
@@ -100,11 +115,23 @@ MakeTrenchStamp(const hrleGrid<D> &grid,
 
       std::array<NumericType, 3> point{0.};
       std::copy(std::begin(origin), std::end(origin), point.begin());
+      if constexpr (D == 2) {
+        point[horizontalDir] += rightFeatures[i];
+        point[verticalDir] += depth * (rightLocations[i] - 1.0);
 
-      point[horizontalDir] += rightFeatures[i];
-      point[verticalDir] += depth * (rightLocations[i] - 1.0);
+        mesh->insertNextNode(point);
+      } else if constexpr (D == 3) {
+        point[trenchDir] = extent;
+        point[horizontalDir] += rightFeatures[i];
+        point[verticalDir] += depth * (rightLocations[i] - 1.0);
 
-      mesh->insertNextNode(point);
+        mesh->insertNextNode(point);
+
+        point[trenchDir] = -extent;
+
+        mesh->insertNextNode(point);
+      }
+      ++k;
     }
 
     // Add the points of the left sidewall in reverse order to the mesh,
@@ -115,10 +142,21 @@ MakeTrenchStamp(const hrleGrid<D> &grid,
       std::array<NumericType, 3> point{0.};
       std::copy(std::begin(origin), std::end(origin), point.begin());
 
-      point[horizontalDir] += leftFeatures[i];
-      point[verticalDir] += depth * (leftLocations[i] - 1.0);
+      if constexpr (D == 2) {
+        point[horizontalDir] += leftFeatures[i];
+        point[verticalDir] += depth * (leftLocations[i] - 1.0);
 
-      mesh->insertNextNode(point);
+        mesh->insertNextNode(point);
+      } else if constexpr (D == 3) {
+        point[trenchDir] = extent;
+        point[horizontalDir] += leftFeatures[i];
+        point[verticalDir] += depth * (leftLocations[i] - 1.0);
+
+        mesh->insertNextNode(point);
+        point[trenchDir] = -extent;
+        mesh->insertNextNode(point);
+      }
+      ++k;
     }
 
     if (j == 0) {
@@ -127,10 +165,21 @@ MakeTrenchStamp(const hrleGrid<D> &grid,
       std::array<NumericType, 3> point{0.};
       std::copy(std::begin(origin), std::end(origin), point.begin());
 
-      point[horizontalDir] += leftFeatures.back();
-      point[verticalDir] += 2 * gridDelta;
+      if constexpr (D == 2) {
+        point[horizontalDir] += leftFeatures.back();
+        point[verticalDir] += 2 * gridDelta;
 
-      mesh->insertNextNode(point);
+        mesh->insertNextNode(point);
+      } else if constexpr (D == 3) {
+        point[trenchDir] = extent;
+        point[horizontalDir] += leftFeatures.back();
+        point[verticalDir] += 2 * gridDelta;
+
+        mesh->insertNextNode(point);
+        point[trenchDir] = -extent;
+        mesh->insertNextNode(point);
+      }
+      ++k;
     }
 
     j = nextJ + 1;
@@ -144,13 +193,63 @@ MakeTrenchStamp(const hrleGrid<D> &grid,
       continue;
     }
 
-    // Connect all nodes of the mesh with lines
-    for (unsigned i = 0; i < mesh->nodes.size() - 1; ++i)
-      mesh->lines.emplace_back(std::array<unsigned, 2>{i, i + 1});
+    if constexpr (D == 2) {
+      // Connect all nodes of the mesh with lines
+      for (unsigned i = 0; i < mesh->nodes.size() - 1; ++i)
+        mesh->lines.emplace_back(std::array<unsigned, 2>{i, i + 1});
+      // Close the hull mesh
+      mesh->lines.emplace_back(std::array<unsigned, 2>{k - 1, 0U});
+    } else if constexpr (D == 3) {
+      // Triangles with two nodes at the front
+      for (unsigned i = 0; i < k - 1; ++i) {
+        mesh->insertNextTriangle(
+            std::array<unsigned, 3>{2 * (i + 1) /* Front */, 2 * i /* Front */,
+                                    2 * (i + 1) + 1 /* Back*/});
+      }
+      mesh->insertNextTriangle(std::array<unsigned, 3>{
+          0 /* Front */, 2 * (k - 1) /* Front */, 1 /* Back */});
 
-    // Close the hull mesh
-    mesh->lines.emplace_back(
-        std::array<unsigned, 2>{static_cast<unsigned>(mesh->lines.size()), 0U});
+      // Triangles with two nodes at the back
+      for (unsigned i = 0; i < k - 1; ++i) {
+        mesh->insertNextTriangle(std::array<unsigned, 3>{
+            2 * i + 1 /* Back */, 2 * (i + 1) + 1 /* Back*/,
+            2 * i /* Front */});
+      }
+      mesh->insertNextTriangle(std::array<unsigned, 3>{
+          2 * (k - 1) + 1 /* Back */, 1 /* Back*/, 2 * (k - 1) /* Front */});
+
+      // Face covers
+      std::array<NumericType, 3> center{0.};
+      std::for_each(mesh->nodes.begin(), mesh->nodes.end(),
+                    [&, i = 0](const auto &n) mutable {
+                      if (++i % 2 == 1) {
+                        center[horizontalDir] += n[horizontalDir];
+                        center[verticalDir] += n[verticalDir];
+                      }
+                    });
+      center[horizontalDir] /= k;
+      center[verticalDir] /= k;
+
+      // Front cover
+      center[trenchDir] = extent;
+      unsigned frontCenterIndex = mesh->insertNextNode(center);
+      for (unsigned i = 0; i < k - 1; ++i) {
+        mesh->insertNextTriangle(
+            std::array<unsigned, 3>{2 * i, 2 * (i + 1), frontCenterIndex});
+      }
+      mesh->insertNextTriangle(
+          std::array<unsigned, 3>{2 * (k - 1), 0, frontCenterIndex});
+
+      // Back cover
+      center[trenchDir] = -extent;
+      unsigned backCenterIndex = mesh->insertNextNode(center);
+      for (unsigned i = 0; i < k - 1; ++i) {
+        mesh->insertNextTriangle(std::array<unsigned, 3>{
+            2 * (i + 1) + 1, 2 * i + 1, backCenterIndex});
+      }
+      mesh->insertNextTriangle(
+          std::array<unsigned, 3>{1, 2 * (k - 1) + 1, backCenterIndex});
+    }
 
 #ifndef NDEBUG
     // Print the created hull mesh

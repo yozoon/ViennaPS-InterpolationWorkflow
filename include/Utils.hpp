@@ -131,9 +131,9 @@ public:
   K key;
   V &value;
 
-  Item(K key_, V &value_) : key(key_), value(value_), conv(&convert<V>) {}
+  Item(K key_, V &value_) : conv(&convert<V>), key(key_), value(value_) {}
 
-  Item(K key_, V &value_, C conv_) : key(key_), value(value_), conv(conv_) {}
+  Item(K key_, V &value_, C conv_) : conv(conv_), key(key_), value(value_) {}
 
   void operator()(const std::string &k) {
     try {
