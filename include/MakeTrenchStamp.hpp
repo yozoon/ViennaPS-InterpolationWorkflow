@@ -18,8 +18,6 @@
 #include <lsVTKWriter.hpp>
 #endif
 
-#include "span.hpp"
-
 template <typename NumericType, int D>
 lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
     const hrleGrid<D> &grid, const std::array<NumericType, 3> &origin,
@@ -48,21 +46,6 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
 
   NumericType depth = features.front();
 
-  // Create spans for specific ranges in the feature and location vectors
-  // (to simplify indexing and make the algorithm more readable)
-  const auto rightFeatures =
-      nonstd::span(std::next(features.begin(), 1),
-                   std::next(features.begin(), numSamplesRight + 1));
-  const auto rightLocations =
-      nonstd::span(std::next(sampleLocations.begin(), 1),
-                   std::next(sampleLocations.begin(), numSamplesRight + 1));
-
-  const auto leftFeatures = nonstd::span(
-      std::next(features.begin(), numSamplesLeft + 1), features.end());
-  const auto leftLocations =
-      nonstd::span(std::next(sampleLocations.begin(), numSamplesLeft + 1),
-                   sampleLocations.end());
-
 #ifndef NDEBUG
   int meshCount = 0;
 #endif
@@ -80,17 +63,14 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
       std::array<NumericType, 3> point{0.};
       std::copy(std::begin(origin), std::end(origin), point.begin());
 
+      point[horizontalDir] += features[1];
+      point[verticalDir] += 2 * gridDelta;
       if constexpr (D == 2) {
-        point[horizontalDir] += rightFeatures.front();
-        point[verticalDir] += 2 * gridDelta;
-
         mesh->insertNextNode(point);
       } else if constexpr (D == 3) {
         point[trenchDir] = extent;
-        point[horizontalDir] += rightFeatures.front();
-        point[verticalDir] += 2 * gridDelta;
-
         mesh->insertNextNode(point);
+
         point[trenchDir] = -extent;
         mesh->insertNextNode(point);
       }
@@ -102,10 +82,11 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
     // Add points of the right sidewall to the mesh until we encounter a
     // pinch-off (the distance between the left and right sidwall features
     // at that location falling below a certain threshold)
-    for (unsigned i = nextJ; i < rightFeatures.size(); ++i) {
+    for (unsigned i = nextJ; i < numSamplesRight; ++i) {
       nextJ = i;
 
-      if (rightFeatures[i] - leftFeatures[std::min(numSamplesLeft - 1, i)] <
+      if (features[i + 1] -
+              features[1 + numSamplesRight + std::min(numSamplesLeft - 1, i)] <
           gridDelta / 5) {
 #ifndef NDEBUG
         std::cout << "Pinchoff point detected!\n";
@@ -115,20 +96,15 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
 
       std::array<NumericType, 3> point{0.};
       std::copy(std::begin(origin), std::end(origin), point.begin());
+      point[horizontalDir] += features[1 + i];
+      point[verticalDir] += depth * (sampleLocations[1 + i] - 1.0);
       if constexpr (D == 2) {
-        point[horizontalDir] += rightFeatures[i];
-        point[verticalDir] += depth * (rightLocations[i] - 1.0);
-
         mesh->insertNextNode(point);
       } else if constexpr (D == 3) {
         point[trenchDir] = extent;
-        point[horizontalDir] += rightFeatures[i];
-        point[verticalDir] += depth * (rightLocations[i] - 1.0);
-
         mesh->insertNextNode(point);
 
         point[trenchDir] = -extent;
-
         mesh->insertNextNode(point);
       }
       ++k;
@@ -142,17 +118,16 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
       std::array<NumericType, 3> point{0.};
       std::copy(std::begin(origin), std::end(origin), point.begin());
 
-      if constexpr (D == 2) {
-        point[horizontalDir] += leftFeatures[i];
-        point[verticalDir] += depth * (leftLocations[i] - 1.0);
+      point[horizontalDir] += features[numSamplesRight + 1 + i];
+      point[verticalDir] +=
+          depth * (sampleLocations[numSamplesRight + 1 + i] - 1.0);
 
+      if constexpr (D == 2) {
         mesh->insertNextNode(point);
       } else if constexpr (D == 3) {
         point[trenchDir] = extent;
-        point[horizontalDir] += leftFeatures[i];
-        point[verticalDir] += depth * (leftLocations[i] - 1.0);
-
         mesh->insertNextNode(point);
+
         point[trenchDir] = -extent;
         mesh->insertNextNode(point);
       }
@@ -165,17 +140,15 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
       std::array<NumericType, 3> point{0.};
       std::copy(std::begin(origin), std::end(origin), point.begin());
 
+      point[horizontalDir] += features.back();
+      point[verticalDir] += 2 * gridDelta;
       if constexpr (D == 2) {
-        point[horizontalDir] += leftFeatures.back();
-        point[verticalDir] += 2 * gridDelta;
 
         mesh->insertNextNode(point);
       } else if constexpr (D == 3) {
         point[trenchDir] = extent;
-        point[horizontalDir] += leftFeatures.back();
-        point[verticalDir] += 2 * gridDelta;
-
         mesh->insertNextNode(point);
+
         point[trenchDir] = -extent;
         mesh->insertNextNode(point);
       }
@@ -218,7 +191,7 @@ lsSmartPointer<lsDomain<NumericType, D>> MakeTrenchStamp(
       mesh->insertNextTriangle(std::array<unsigned, 3>{
           2 * (k - 1) + 1 /* Back */, 1 /* Back*/, 2 * (k - 1) /* Front */});
 
-      // Face covers
+      // Determine the center point of the cross section
       std::array<NumericType, 3> center{0.};
       std::for_each(mesh->nodes.begin(), mesh->nodes.end(),
                     [&, i = 0](const auto &n) mutable {

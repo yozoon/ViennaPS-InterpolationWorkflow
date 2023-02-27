@@ -8,14 +8,6 @@ set(VIENNAPS_VERBOSE OFF)
 find_package(ViennaLS REQUIRED)
 find_package(LAPACK REQUIRED)
 
-# Get the pre-c++20 span implementation library
-include(FetchContent)
-FetchContent_Declare(
-  spanlite
-  GIT_REPOSITORY https://github.com/martinmoene/span-lite.git
-)
-FetchContent_MakeAvailable(spanlite)
-
 # Set default build type
 set(DEFAULT_BUILD_TYPE "Release")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -36,7 +28,7 @@ else()
 endif()
 
 # Add include directories
-list(APPEND PROJECT_INCLUDE_DIRS ${VIENNALS_INCLUDE_DIRS} include/ ${spanlite_SOURCE_DIR}/include/nonstd)
+list(APPEND PROJECT_INCLUDE_DIRS ${VIENNALS_INCLUDE_DIRS} include/)
 # Add libraries
 list(APPEND PROJECT_LIBRARIES ${VIENNALS_LIBRARIES} ${LAPACK_LIBRARIES})
 
@@ -46,7 +38,8 @@ add_executable(${WORKFLOW} src/${WORKFLOW}.cpp)
 target_include_directories(${WORKFLOW} PUBLIC ${PROJECT_INCLUDE_DIRS})
 target_link_libraries(${WORKFLOW} PRIVATE ${PROJECT_LIBRARIES})
 
-# Optional executables for generating the dataset as well as demonstrating the extraction and reconstruction flow
+# Optional executables for generating the dataset as well as for testing
+# the extraction and reconstruction functionality
 find_package(ViennaPS)
 if(ViennaPS_FOUND)
   list(APPEND PROJECT_INCLUDE_DIRS ${VIENNAPS_INCLUDE_DIRS})

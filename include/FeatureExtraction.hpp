@@ -16,7 +16,6 @@
 #endif
 
 #include "KDTree.hpp"
-#include "span.hpp"
 
 template <typename NumericType, int D> class FeatureExtraction {
   enum FeatureLabelEnum : unsigned {
@@ -205,22 +204,23 @@ public:
   // Populate the given range with a sequence of values in the range from 0
   // to 1 and place them closer to the edges or closer to the center based on
   // the edgeAffinity parameter.
-  void distributeSampleLocations(nonstd::span<NumericType> range,
-                                 NumericType edgeAffinity = 0.0,
-                                 bool ascending = true,
-                                 bool closed = true) const {
-    auto n = range.size();
+  void
+  distributeSampleLocations(typename std::vector<NumericType>::iterator begin,
+                            typename std::vector<NumericType>::iterator end,
+                            NumericType edgeAffinity = 0.0,
+                            bool ascending = true, bool closed = true) const {
+    auto n = std::distance(begin, end);
     if (n < 1)
       return;
 
     // Generate n evenly spaced points in the interval [-1, 1] (or (-1, 1) if
     // closed==false)
     if (closed) {
-      std::generate(range.begin(), range.end(), [=, i = 0]() mutable {
+      std::generate(begin, end, [=, i = 0]() mutable {
         return -1.0 + 2.0 * i++ / (n - 1);
       });
     } else {
-      std::generate(range.begin(), range.end(), [=, i = 0]() mutable {
+      std::generate(begin, end, [=, i = 0]() mutable {
         return -1.0 + 2.0 * (i++ + 0.5) / n;
       });
     }
@@ -229,25 +229,24 @@ public:
     if (edgeAffinity != 0.0) {
       // Spread the points. Increase density around zero (if edgeAffinity < 0)
       // or increase density at the edges (if edgeAffinity > 0)
-      std::transform(range.begin(), range.end(), range.begin(),
-                     [edgeAffinity](NumericType xi) {
-                       return xi < 0 ? 1.0 - std::exp(edgeAffinity * xi)
-                                     : std::expm1(-edgeAffinity * xi);
-                     });
+      std::transform(begin, end, begin, [edgeAffinity](NumericType xi) {
+        return xi < 0 ? 1.0 - std::exp(edgeAffinity * xi)
+                      : std::expm1(-edgeAffinity * xi);
+      });
       maxVal = std::abs(std::expm1(-edgeAffinity));
     }
     // Now transform the points back into the interval [0,1] (or (0,1) if
     // closed==False)
-    std::transform(range.begin(), range.end(), range.begin(),
+    std::transform(begin, end, begin,
                    [=](NumericType xi) { return (xi / maxVal + 1.0) / 2.0; });
 
     if (ascending) {
       if (edgeAffinity > 0)
-        std::transform(range.begin(), range.end(), range.begin(),
+        std::transform(begin, end, begin,
                        [](const auto &v) { return 1.0 - v; });
     } else {
       if (edgeAffinity <= 0)
-        std::transform(range.begin(), range.end(), range.begin(),
+        std::transform(begin, end, begin,
                        [](const auto &v) { return 1.0 - v; });
     }
   }
@@ -284,16 +283,14 @@ public:
     // The remaining sample locations are distributed in the range 0 to 1.
     // Left sidewall sample locations (top to bottom -> descending)
     distributeSampleLocations(
-        nonstd::span(std::next(sampleLocations.begin(), 1),
-                     std::next(sampleLocations.begin(), numSamplesRight + 1)),
-        edgeAffinity,
+        std::next(sampleLocations.begin(), 1),
+        std::next(sampleLocations.begin(), numSamplesRight + 1), edgeAffinity,
         /*descending*/ false, closed);
 
     // Right sidewall sample locations (top to bottom -> descending)
     distributeSampleLocations(
-        nonstd::span(std::next(sampleLocations.begin(), numSamplesRight + 1),
-                     sampleLocations.end()),
-        edgeAffinity, /*descending*/ false, closed);
+        std::next(sampleLocations.begin(), numSamplesRight + 1),
+        sampleLocations.end(), edgeAffinity, /*descending*/ false, closed);
   }
 
 private:
